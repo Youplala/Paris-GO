@@ -26,6 +26,7 @@ import {
 import type { StationDetail } from '@/types/station';
 import { formatContributorName } from '@/utils/community-stats';
 import { mappingStatus } from '@/utils/mapping-coverage';
+import { arrondissementLabel, nearestArrondissement } from '@/utils/place-name';
 
 const PARTICLES = ['de', 'du', 'des', 'le', 'la'];
 
@@ -101,7 +102,21 @@ export function CollectiveScreen() {
     [stations],
   );
   const remainingMissions = openStations.slice(0, 6);
-  const localSuggestion = useMemo(() => buildLocalSuggestion(openStations), [openStations]);
+  // Les lieux de 1970 n'ont pas d'arrondissement propre : on emprunte celui du repère localisé
+  // le plus proche pour ne jamais suggérer un numéro seul.
+  const localSuggestion = useMemo(() => {
+    const located = stations.filter((station) => Boolean(station.arrondissement));
+    return buildLocalSuggestion(
+      openStations.map((station) => ({
+        ...station,
+        arrondissement:
+          station.arrondissement ?? nearestArrondissement(station.coordinate, located),
+      })),
+    );
+  }, [openStations, stations]);
+  const suggestionPlace = localSuggestion
+    ? (arrondissementLabel(localSuggestion.sector) ?? localSuggestion.sector)
+    : undefined;
   const snapshotDate = formatSnapshotDate(snapshotVersion);
 
   return (
@@ -126,11 +141,11 @@ export function CollectiveScreen() {
               <Text style={styles.statsLinkText}>Statistiques</Text>
             </Pressable>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Rechercher un contributeur"
+          <Pressable accessibilityRole="button" accessibilityLabel="Trouver un participant"
             onPress={() => router.push('/contributors')}
             style={({ pressed }) => [styles.searchLink, pressed && styles.contributorsPressed]}>
             <SymbolView name="magnifyingglass" size={19} tintColor={Palette.inkSoft} />
-            <Text style={styles.searchLinkText}>Trouver un contributeur</Text>
+            <Text style={styles.searchLinkText}>Trouver un participant</Text>
             <SymbolView name="chevron.right" size={13} tintColor={Palette.inkSoft} />
           </Pressable>
         </SafeAreaView>
@@ -152,7 +167,7 @@ export function CollectiveScreen() {
             <SymbolView name="photo.on.rectangle.angled" size={24} tintColor={Palette.inkSoft} />
             <Text style={styles.loadingTitle}>Aucune photo refaite pour l’instant</Text>
             <Text style={styles.loadingCopy}>
-              Les comparaisons avant/après apparaîtront ici dès qu’une photo sera publiée.
+              Les photos refaites publiées apparaîtront ici.
             </Text>
           </View>
         )}
@@ -167,20 +182,20 @@ export function CollectiveScreen() {
           <View style={styles.statDivider} />
           <View style={styles.stat}>
             <Text style={styles.statNumber}>{coverage.percentage}%</Text>
-            <Text style={styles.statLabel}>DU FONDS 1970</Text>
+            <Text style={styles.statLabel}>DES PHOTOS DE 1970</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.stat}>
             <Text style={styles.statNumber}>
               {coverage.remaining1970.toLocaleString('fr-FR')}
             </Text>
-            <Text style={styles.statLabel}>À RETROUVER</Text>
+            <Text style={styles.statLabel}>À REFAIRE</Text>
           </View>
         </View>
 
         <View style={styles.contributors}>
           <Pressable
-            accessibilityLabel={`Voir le bilan de la communauté : ${stats.contributorCount} contributeurs et ${stats.recapturesLast30Days} photos publiées ce mois-ci`}
+            accessibilityLabel={`Voir le bilan : ${stats.contributorCount} participants et ${stats.recapturesLast30Days} photos publiées ce mois-ci`}
             accessibilityRole="button"
             onPress={() => {
               void Haptics.selectionAsync();
@@ -191,7 +206,7 @@ export function CollectiveScreen() {
               pressed && styles.contributorsPressed,
             ]}>
             <Text style={styles.contributorsKicker}>
-              {stats.contributorCount} CONTRIBUTEURS · {stats.recapturesLast30Days} PHOTOS CE MOIS-CI
+              {stats.contributorCount} PARTICIPANTS · {stats.recapturesLast30Days} PHOTOS CE MOIS-CI
             </Text>
             <View style={styles.contributorsAction}>
               <Text style={styles.contributorsActionText}>Le bilan</Text>
@@ -230,7 +245,7 @@ export function CollectiveScreen() {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Photos à retrouver</Text>
+          <Text style={styles.sectionTitle}>Photos à refaire</Text>
           <SymbolView name="scope" size={18} tintColor={Palette.parisBlue} />
         </View>
 
@@ -249,16 +264,16 @@ export function CollectiveScreen() {
             <View style={styles.suggestionMark}>
               <SymbolView name="map.fill" size={28} tintColor={Palette.parisBlue} />
               <Text style={styles.suggestionCount}>{localSuggestion.missionCount}</Text>
-              <Text style={styles.suggestionCountLabel}>POINTS DE VUE OUVERTS</Text>
+              <Text style={styles.suggestionCountLabel}>À REFAIRE</Text>
             </View>
             <View style={styles.walkBody}>
-              <Text style={styles.walkKicker}>SUGGESTION LOCALE · {localSuggestion.sector}</Text>
-              <Text style={styles.walkTitle}>Explorer ce secteur</Text>
+              <Text style={styles.walkKicker}>SUGGESTION LOCALE · {suggestionPlace}</Text>
+              <Text style={styles.walkTitle}>Explorer ce lieu</Text>
               <Text style={styles.walkCopy}>
-                Sélection calculée sur cet iPhone à partir des missions du relevé du {snapshotDate}.
+                Calculée sur cet iPhone d’après le relevé du {snapshotDate}.
               </Text>
               <Pressable
-                accessibilityLabel={`Voir un point de départ dans le ${localSuggestion.sector}`}
+                accessibilityLabel={`Voir une photo à refaire : ${suggestionPlace}`}
                 onPress={() =>
                   router.push({
                     pathname: '/station/[id]',
@@ -266,7 +281,7 @@ export function CollectiveScreen() {
                   })
                 }
                 style={({ pressed }) => [styles.walkAction, pressed && styles.pressed]}>
-                <Text style={styles.walkActionText}>Voir un point de départ</Text>
+                <Text style={styles.walkActionText}>Voir une photo</Text>
                 <SymbolView name="arrow.right" size={14} tintColor={Palette.white} />
               </Pressable>
             </View>
@@ -276,9 +291,8 @@ export function CollectiveScreen() {
         <View style={styles.prototypeNote}>
           <SymbolView name="info.circle" size={22} tintColor={Palette.parisBlue} />
           <Text style={styles.prototypeText}>
-            Données Observatoire : relevé public du {snapshotDate}. Archives 1970 : Bibliothèques
-            spécialisées de la Ville de Paris. Les suggestions sont calculées localement, sans
-            activité sociale ni envoi depuis l’app.
+            Données Observatoire : relevé public du {snapshotDate}. Photos de 1970 : Bibliothèques
+            spécialisées de la Ville de Paris. Suggestions calculées sur cet iPhone.
           </Text>
         </View>
       </ScrollView>

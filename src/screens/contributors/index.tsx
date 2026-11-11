@@ -22,12 +22,12 @@ export function ContributorsScreen() {
           onPress={() => router.back()} style={styles.back}>
           <SymbolView name="chevron.left" size={18} tintColor={Palette.parisBlue} />
         </Pressable>
-        <Text accessibilityRole="header" style={styles.title}>Contributeurs</Text>
+        <Text accessibilityRole="header" style={styles.title}>Participants</Text>
       </View>
       <View style={styles.search}>
         <SymbolView name="magnifyingglass" size={19} tintColor={Palette.inkSoft} />
         <TextInput
-          accessibilityLabel="Rechercher un contributeur par prénom"
+          accessibilityLabel="Rechercher un participant par prénom"
           placeholder="Rechercher par prénom"
           placeholderTextColor={Palette.inkSoft}
           value={query}
@@ -46,7 +46,7 @@ export function ContributorsScreen() {
         ) : null}
       </View>
       <Text accessibilityLiveRegion="polite" style={styles.count}>
-        {contributors.length} {contributors.length > 1 ? 'contributeurs' : 'contributeur'}
+        {contributors.length} {contributors.length > 1 ? 'participants' : 'participant'}
         {query.trim() ? (contributors.length > 1 ? ' trouvés' : ' trouvé') : ' dans le relevé'}
       </Text>
       <FlatList
@@ -58,7 +58,7 @@ export function ContributorsScreen() {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Aucun contributeur trouvé</Text>
+            <Text style={styles.emptyTitle}>Aucun participant trouvé</Text>
             <Text style={styles.emptyCopy}>Essayez un autre prénom. Seuls les auteurs de photos publiées dans le relevé sont disponibles.</Text>
           </View>
         }

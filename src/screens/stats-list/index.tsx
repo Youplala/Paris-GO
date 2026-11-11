@@ -22,8 +22,8 @@ const COPY: Record<StatsListKind, { kicker: string; title: string; unit: string 
   },
   photographes: {
     kicker: 'Photographes de 1970',
-    title: 'Les plus repris',
-    unit: 'vues refaites',
+    title: 'Les plus refaits',
+    unit: 'photos refaites',
   },
 };
 
