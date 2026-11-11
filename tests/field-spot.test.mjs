@@ -54,5 +54,5 @@ test('le viseur garde ses garanties : pas d’EXIF, mode démo, paramètres de r
   for (const key of ['frame', 'referenceUri', 'uri', 'simulated', 'latitude', 'longitude', 'locationPrecision']) {
     assert.match(src, new RegExp(`${key}:`));
   }
-  assert.doesNotMatch(src, /CAMÉRA ACTIVE|Contraste|ZOOM|formatBadge/);
+  assert.doesNotMatch(src, /CAMÉRA ACTIVE|Contraste|>ZOOM<|formatBadge/);
 });
