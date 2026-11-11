@@ -1,10 +1,9 @@
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   Alert,
-  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,17 +14,18 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { IconButton } from '@/components/icon-button';
 import { MissionCard } from '@/components/mission-card';
 import { ProgressBar } from '@/components/progress-bar';
 import { SourcePill } from '@/components/source-pill';
 import { StationCard } from '@/components/station-card';
-import { PRIVACY_POLICY_URL } from '@/constants/legal';
+import { formatCampaignEnd } from '@/constants/campaign';
 import {
   Fonts,
+  HitSize,
   Kicker,
   Palette,
   Radius,
-  Shadow,
   Spacing,
   TabBarClearance,
   Typography,
@@ -38,6 +38,7 @@ import { distanceInMeters, formatDistance } from '@/utils/distance';
 import { nearestArrondissement } from '@/utils/place-name';
 import { PARIS_CENTER } from '@/data/archive';
 import { HOME_LOCATION_CONTENT, classifyLocationContext } from '@/services/location-context';
+import { refreshToSendCount, useToSendCount } from '@/services/my-photos-count';
 
 export function HomeScreen() {
   const router = useRouter();
@@ -46,6 +47,12 @@ export function HomeScreen() {
   const { coordinate, isPrecise, loading: locating, locate } = useUserLocation({
     autoLocate: true,
   });
+  const toSend = useToSendCount();
+  useFocusEffect(
+    useCallback(() => {
+      void refreshToSendCount();
+    }, []),
+  );
   const locationContext = classifyLocationContext({ coordinate, isPrecise });
   const locationContent = HOME_LOCATION_CONTENT[locationContext];
   const proximityOrigin = locationContext === 'in-paris' ? coordinate : PARIS_CENTER;
@@ -124,30 +131,17 @@ export function HomeScreen() {
               )}
             </View>
             <View style={styles.headerActions}>
-              <Pressable
-                accessibilityLabel="Ouvrir le carnet"
-                accessibilityRole="button"
-                onPress={() => router.push('/fieldbook')}
-                style={({ pressed }) => [styles.locationButton, pressed && styles.pressed]}>
-                <SymbolView name="book.closed.fill" size={20} tintColor={Palette.parisBlue} />
-              </Pressable>
-              <Pressable
+              <IconButton
+                icon="info.circle"
+                accessibilityLabel="À propos de Paris GO"
+                onPress={() => router.push('/about')}
+              />
+              <IconButton
+                icon={isPrecise ? 'location.fill' : 'location'}
                 accessibilityLabel="Utiliser ma position"
-                accessibilityRole="button"
-                accessibilityState={{ busy: locating, disabled: locating }}
-                disabled={locating}
+                loading={locating}
                 onPress={handleLocate}
-                style={({ pressed }) => [
-                  styles.locationButton,
-                  locating && styles.locationButtonDisabled,
-                  pressed && styles.pressed,
-                ]}>
-                <SymbolView
-                  name={isPrecise ? 'location.fill' : 'location'}
-                  size={21}
-                  tintColor={Palette.parisBlue}
-                />
-              </Pressable>
+              />
             </View>
           </View>
 
@@ -161,6 +155,20 @@ export function HomeScreen() {
                 Voici par où commencer au centre.
               </Text>
             </View>
+          ) : null}
+
+          {toSend > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${toSend} ${toSend > 1 ? 'photos' : 'photo'} à envoyer. Ouvrir Mes photos`}
+              onPress={() => router.navigate('/photos')}
+              style={({ pressed }) => [styles.reminder, pressed && styles.pressedSoft]}>
+              <SymbolView name="paperplane.fill" size={16} tintColor={Palette.go} />
+              <Text style={styles.reminderText}>
+                {toSend} {toSend > 1 ? 'photos' : 'photo'} à envoyer
+              </Text>
+              <SymbolView name="chevron.right" size={12} tintColor={Palette.inkSoft} />
+            </Pressable>
           ) : null}
 
           {/* La progression collective : ce que la campagne a déjà refait de Paris. */}
@@ -187,13 +195,16 @@ export function HomeScreen() {
               </Text>
               <Text style={styles.progressStat}>
                 <Text style={styles.progressStatStrong}>{stats.contributorCount.toLocaleString('fr-FR')}</Text>{' '}
-                explorateurs
+                participants
               </Text>
               <Text style={styles.progressStat}>
                 <Text style={styles.progressStatStrong}>{coverage.squaresOpened.toLocaleString('fr-FR')}</Text>{' '}
-                secteurs ouverts
+                lieux ouverts
               </Text>
             </View>
+            <Text style={styles.campaign}>
+              Campagne ouverte jusqu’au {formatCampaignEnd()}
+            </Text>
           </Pressable>
         </SafeAreaView>
 
@@ -210,7 +221,7 @@ export function HomeScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHead}>
               <Text accessibilityRole="header" style={styles.sectionTitle}>
-                {locationContext === 'in-paris' ? 'Autres secteurs proches' : 'Autres secteurs à explorer'}
+                {locationContext === 'in-paris' ? 'Autres lieux proches' : 'Autres lieux à explorer'}
               </Text>
               <Pressable
                 accessibilityRole="link"
@@ -243,22 +254,14 @@ export function HomeScreen() {
         <View style={styles.dataNote}>
           <SourcePill version={snapshotVersion} />
           <Text style={styles.dataCopy}>
-            Photos de 1970 conservées par la Bibliothèque historique de la Ville de Paris. Carte et
-            photos actuelles publiées par l’Observatoire photo participatif des paysages parisiens, animé
-            par le CAUE de Paris.
+            Photos de 1970 : Bibliothèque historique de la Ville de Paris. Photos actuelles :
+            Observatoire photo participatif des paysages parisiens, CAUE de Paris.
           </Text>
           {syncError ? (
             <Text accessibilityLiveRegion="polite" style={styles.dataError}>
               Mise à jour impossible pour le moment — données disponibles hors connexion.
             </Text>
           ) : null}
-          <Pressable
-            accessibilityRole="link"
-            onPress={() => void Linking.openURL(PRIVACY_POLICY_URL)}
-            style={({ pressed }) => [styles.privacyLink, pressed && styles.pressedSoft]}>
-            <Text style={styles.privacyLinkText}>Politique de confidentialité</Text>
-            <SymbolView name="arrow.up.right" size={12} tintColor={Palette.parisBlue} />
-          </Pressable>
         </View>
       </ScrollView>
 
@@ -310,23 +313,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.two,
   },
-  locationButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Palette.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadow.card,
-  },
-  locationButtonDisabled: {
-    opacity: 0.58,
-  },
-  pressed: {
-    transform: [{ scale: 0.94 }],
-  },
   pressedSoft: {
     opacity: 0.6,
+  },
+  reminder: {
+    marginTop: Spacing.twoHalf,
+    minHeight: HitSize,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.white,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  reminderText: {
+    ...Typography.body,
+    flex: 1,
+    color: Palette.ink,
+    fontFamily: Fonts.sans,
+    fontWeight: '700',
+  },
+  campaign: {
+    ...Typography.caption,
+    color: Palette.inkSoft,
+    fontFamily: Fonts.sans,
   },
   outsideNotice: {
     marginTop: Spacing.twoHalf,
@@ -442,20 +452,6 @@ const styles = StyleSheet.create({
     color: Palette.danger,
     fontFamily: Fonts.sans,
     fontWeight: '600',
-  },
-  privacyLink: {
-    minHeight: 44,
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-  },
-  privacyLinkText: {
-    ...Typography.caption,
-    color: Palette.parisBlue,
-    fontFamily: Fonts.sans,
-    fontWeight: '700',
-    textDecorationLine: 'underline',
   },
   locatingToast: {
     position: 'absolute',

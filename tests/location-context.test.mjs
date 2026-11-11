@@ -167,3 +167,37 @@ test('les reprises publiées restent indépendantes de la localisation', async (
   assert.match(source, /const feed = publishedSubmissions/);
   assert.doesNotMatch(source, /useUserLocation|expo-location/);
 });
+
+test('la navigation range À propos hors des onglets et expose Mes photos', async () => {
+  const tabs = await readFile(new URL('../src/components/app-tabs.tsx', import.meta.url), 'utf8');
+  const layout = await readFile(new URL('../src/app/_layout.tsx', import.meta.url), 'utf8');
+  const home = await readFile(new URL('../src/screens/home/index.tsx', import.meta.url), 'utf8');
+  const alias = await readFile(new URL('../src/app/fieldbook.tsx', import.meta.url), 'utf8');
+
+  assert.match(tabs, /name="photos"/);
+  assert.doesNotMatch(tabs, /name="about"/);
+  assert.match(tabs, /disableTransparentOnScrollEdge/);
+  assert.match(tabs, /shadowColor=\{Palette\.line\}/);
+  assert.match(layout, /name="about"[\s\S]*presentation: 'modal'/);
+  assert.match(alias, /<Redirect href="\/photos" \/>/);
+  assert.match(home, /router\.push\('\/about'\)/);
+  assert.match(home, /formatCampaignEnd\(\)/);
+  assert.doesNotMatch(home, /explorateurs|secteurs|Mission du jour|\/fieldbook/);
+});
+
+test('la navigation range À propos hors des onglets et expose Mes photos', async () => {
+  const tabs = await readFile(new URL('../src/components/app-tabs.tsx', import.meta.url), 'utf8');
+  const layout = await readFile(new URL('../src/app/_layout.tsx', import.meta.url), 'utf8');
+  const home = await readFile(new URL('../src/screens/home/index.tsx', import.meta.url), 'utf8');
+  const alias = await readFile(new URL('../src/app/fieldbook.tsx', import.meta.url), 'utf8');
+
+  assert.match(tabs, /name="photos"/);
+  assert.doesNotMatch(tabs, /name="about"/);
+  assert.match(tabs, /disableTransparentOnScrollEdge/);
+  assert.match(tabs, /shadowColor=\{Palette\.line\}/);
+  assert.match(layout, /name="about"[\s\S]*presentation: 'modal'/);
+  assert.match(alias, /<Redirect href="\/photos" \/>/);
+  assert.match(home, /router\.push\('\/about'\)/);
+  assert.match(home, /formatCampaignEnd\(\)/);
+  assert.doesNotMatch(home, /explorateurs|secteurs|Mission du jour|\/fieldbook/);
+});
