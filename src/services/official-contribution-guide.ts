@@ -5,7 +5,7 @@ export const OFFICIAL_CONTRIBUTION_GUIDE = [
     title: 'Vos deux photos se préparent automatiquement',
     body: 'Paris GO prépare les fichiers pendant que vous découvrez le formulaire officiel.',
     points: [
-      'L’archive de 1970 est jointe en premier.',
+      'La photo de 1970 est jointe en premier.',
       'Votre photo actuelle est jointe juste après.',
       'Vérifiez que l’indicateur affiche bien 2/2 photos jointes.',
     ],
@@ -14,7 +14,7 @@ export const OFFICIAL_CONTRIBUTION_GUIDE = [
     icon: 'text.badge.checkmark' as const,
     eyebrow: 'ÉTAPE 2 · INFORMATIONS',
     title: 'Les données publiques sont préparées',
-    body: 'Paris GO remplit uniquement ce qui est certain et utile au dépôt.',
+    body: 'Paris GO remplit uniquement ce qui est certain et utile à l’envoi.',
     points: [
       'Adresse, date, position et type d’appareil sont préremplis.',
       'Le commentaire est libre. La mention « Photo refaite avec Paris GO. » sera ajoutée lors de l’envoi.',
@@ -29,7 +29,7 @@ export const OFFICIAL_CONTRIBUTION_GUIDE = [
     points: [
       'Votre identité reste à saisir par vous-même.',
       'Le règlement et les consentements exigent votre action.',
-      'Vous déclenchez l’envoi final, puis la contribution passe en modération.',
+      'Vous déclenchez l’envoi final, puis votre photo est publiée après validation (modération) par l’Observatoire.',
     ],
   },
 ] as const;
