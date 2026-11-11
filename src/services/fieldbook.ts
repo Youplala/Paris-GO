@@ -128,6 +128,11 @@ export async function updateCapturePreparation(id: string, preparation: CaptureP
   return store.update(id, { preparation });
 }
 
+/** À appeler uniquement quand le formulaire officiel a confirmé l'envoi, jamais par anticipation. */
+export async function markCaptureSubmitted(id: string) {
+  return store.markSubmitted(id);
+}
+
 export async function deleteCapture(id: string) {
   return store.remove(id);
 }
