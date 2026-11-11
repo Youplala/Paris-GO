@@ -1,4 +1,5 @@
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Palette, Radius } from '@/constants/theme';
 
@@ -18,6 +19,16 @@ type ProgressBarProps = {
 export function ProgressBar({ percentage, height = 8, tone = 'default', style }: ProgressBarProps) {
   const clamped = Math.min(100, Math.max(0, percentage));
   const width = clamped === 0 ? 0 : Math.max(2, clamped);
+  const [progress] = useState(() => new Animated.Value(width));
+
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: width,
+      duration: 450,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [progress, width]);
 
   return (
     <View
@@ -29,7 +40,15 @@ export function ProgressBar({ percentage, height = 8, tone = 'default', style }:
         tone === 'onDark' && styles.trackOnDark,
         style,
       ]}>
-      <View style={[styles.fill, { width: `${width}%`, borderRadius: height / 2 }]} />
+      <Animated.View
+        style={[
+          styles.fill,
+          {
+            borderRadius: height / 2,
+            width: progress.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }),
+          },
+        ]}
+      />
     </View>
   );
 }

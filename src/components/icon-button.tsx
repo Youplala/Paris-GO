@@ -52,9 +52,9 @@ export function IconButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled: isDisabled, selected, busy: loading }}
+      accessibilityState={{ disabled: Boolean(isDisabled), selected: Boolean(selected), busy: Boolean(loading) }}
       disabled={isDisabled}
-      hitSlop={6}
+      hitSlop={label ? 0 : 6}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
@@ -71,7 +71,9 @@ export function IconButton({
         <SymbolView name={icon} size={18} tintColor={selected ? Palette.white : tint} />
       )}
       {label ? (
-        <Text style={[styles.label, { color: selected ? Palette.white : tint }]}>{label}</Text>
+        <Text numberOfLines={1} style={[styles.label, { color: selected ? Palette.white : tint }]}>
+          {label}
+        </Text>
       ) : null}
     </Pressable>
   );
@@ -92,27 +94,36 @@ const styles = StyleSheet.create({
   },
   light: {
     backgroundColor: Palette.white,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Palette.line,
     ...Shadow.card,
   },
   dark: {
     backgroundColor: 'rgba(8, 17, 22, 0.62)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
   },
   glass: {
-    backgroundColor: 'rgba(255, 255, 255, 0.88)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(13, 42, 60, 0.10)',
     ...Shadow.card,
   },
   selected: {
     backgroundColor: Palette.parisBlue,
+    borderColor: Palette.parisBlue,
   },
   disabled: {
     opacity: 0.45,
   },
   pressed: {
-    transform: [{ scale: 0.94 }],
+    transform: [{ scale: 0.92 }],
+    opacity: 0.85,
   },
   label: {
     ...Typography.caption,
     fontFamily: Fonts.sans,
     fontWeight: '700',
+    flexShrink: 1,
   },
 });
