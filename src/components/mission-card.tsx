@@ -27,8 +27,8 @@ type MissionCardProps = {
 };
 
 /**
- * Le secteur de 1970 le plus proche, présenté comme la mission du moment : où, combien de
- * photos restent à refaire, et une seule action pour y aller.
+ * Le lieu de 1970 le plus proche : où, combien de photos restent à refaire, et une seule
+ * action pour y aller.
  */
 export function MissionCard({ station, distance }: MissionCardProps) {
   const router = useRouter();
@@ -39,7 +39,7 @@ export function MissionCard({ station, distance }: MissionCardProps) {
   const remaining = station.remainingCount ?? total;
   const done = Math.max(0, station.publishedCount ?? total - remaining);
   const percentage = total > 0 ? (done / total) * 100 : 0;
-  const title = arrondissementLabel(station.arrondissement) ?? `Secteur ${station.name}`;
+  const title = arrondissementLabel(station.arrondissement) ?? 'Un lieu à Paris';
   const where =
     distance !== undefined
       ? `${station.approximate ? 'À environ ' : 'À '}${formatDistance(distance)}`
@@ -65,7 +65,7 @@ export function MissionCard({ station, distance }: MissionCardProps) {
       </Pressable>
 
       <View style={styles.body}>
-        <Text style={styles.kicker}>Mission du jour</Text>
+        <Text style={styles.kicker}>Prochaine photo</Text>
         <Text accessibilityRole="header" style={styles.title} numberOfLines={1}>
           {title}
         </Text>
@@ -75,7 +75,7 @@ export function MissionCard({ station, distance }: MissionCardProps) {
             <Text style={styles.countStrong}>{done}</Text> / {total} photos refaites
           </Text>
           <Text style={styles.remaining}>
-            {remaining > 0 ? `${remaining} à retrouver` : 'Secteur terminé'}
+            {remaining > 0 ? `${remaining} à refaire` : 'Lieu terminé'}
           </Text>
         </View>
         <ProgressBar percentage={percentage} />
