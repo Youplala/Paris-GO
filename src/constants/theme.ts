@@ -18,6 +18,8 @@ export const Palette = {
   copper: '#CC481C',
   go: '#CC481C',
   goBright: '#E8552B',
+  goPressed: '#A93A15',
+  blueNightPressed: '#0D2A3C',
   goSoft: '#FBE4DA',
   lichen: '#4F8A6B',
   line: '#DDD5C8',
@@ -99,6 +101,18 @@ export const Radius = {
 
 /** Taille minimale d'une cible tactile (HIG). */
 export const HitSize = 44;
+
+/** Hauteurs des boutons pleins : `regular` pour l'action de l'écran, `compact` pour les actions en ligne. */
+export const ButtonHeight = { regular: 52, compact: 44 } as const;
+
+/** Ombre d'un bouton flottant (dock d'actions, bouton posé sur une photo). */
+export const FloatingShadow = {
+  shadowColor: Palette.blueDeep,
+  shadowOffset: { width: 0, height: 8 },
+  shadowOpacity: 0.2,
+  shadowRadius: 16,
+  elevation: 8,
+} as const;
 
 export const Shadow = {
   card: {
