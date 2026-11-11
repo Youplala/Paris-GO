@@ -27,11 +27,12 @@ import { AdaptivePhoto } from '@/components/adaptive-photo';
 import { ArchiveFilmstrip } from '@/components/archive-filmstrip';
 import { BeforeAfterSlider } from '@/components/before-after-slider';
 import { ArchiveFacts, RecaptureFacts } from '@/components/photo-facts';
+import { FieldSpotGuide } from '@/components/field-spot-guide';
 import { GlassActionDock } from '@/components/glass-action-dock';
+import { IconButton } from '@/components/icon-button';
 import { ParisGoBadge } from '@/components/paris-go-badge';
 import { GlassSurface } from '@/components/glass-surface';
 import { PhotoViewer } from '@/components/photo-viewer';
-import { PrimaryButton } from '@/components/primary-button';
 import { SourcePill } from '@/components/source-pill';
 import { Fonts, Kicker, Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { PROJECT_URL } from '@/constants/legal';
@@ -41,6 +42,7 @@ import { useStationDetail } from '@/hooks/use-station-detail';
 import { archiveLinkForImage } from '@/services/bhvp-images';
 import { historicalReferenceForFrame } from '@/services/camera-reference';
 import { formatContributorName } from '@/utils/community-stats';
+import { arrondissementLabel } from '@/utils/place-name';
 import { buildPhotoReportDraft, launchPhotoReport } from '@/utils/photo-report';
 
 const BHVP_NAME = 'Bibliothèque historique de la Ville de Paris';
@@ -90,6 +92,9 @@ export function StationScreen() {
   const squareBounds = detail?.bounds ?? summary?.bounds;
   const referenceYear = detail?.year ?? summary?.year ?? 1970;
   const title = detail?.name ?? summary?.name ?? 'Point de vue';
+  // Un lieu de 1970 se nomme par son arrondissement, jamais par son numéro interne.
+  const placeName =
+    arrondissementLabel(detail?.arrondissement ?? summary?.arrondissement) ?? 'Lieu de 1970';
   const referenceAuthor = (selectedArchiveMetadata?.author ?? detail?.author)?.trim();
   const referenceAuthorDisplay = referenceAuthor ? formatContributorName(referenceAuthor) : undefined;
   const currentAuthor = detail?.currentAuthor?.trim();
@@ -103,7 +108,7 @@ export function StationScreen() {
     referenceYear === 1970
       ? `${BHVP_NAME} · ${PARIS_1970_FUND}`
       : 'Observatoire photo participatif des paysages parisiens · CAUE de Paris';
-  const currentCredit = `Photo 2026 · ${currentAuthorDisplay ?? 'Contributeur·rice non renseigné·e'}`;
+  const currentCredit = `Photo 2026 · ${currentAuthorDisplay ?? 'Participant non renseigné'}`;
   const coordinate = detail?.coordinate ?? summary?.coordinate ?? PARIS_CENTER;
   const recaptureYearLabel = detail?.recaptureDate?.slice(0, 4) || 'Aujourd’hui';
   const shareUrl = PROJECT_URL;
@@ -298,19 +303,19 @@ export function StationScreen() {
               }}
             />
             <SafeAreaView edges={['top']} pointerEvents="box-none" style={styles.heroControls}>
-              <Pressable
+              <IconButton
+                icon="chevron.left"
+                variant="glass"
                 accessibilityLabel="Retour"
                 onPress={() => router.back()}
-                style={({ pressed }) => [styles.circleButton, styles.floatingButton, pressed && styles.pressed]}>
-                <SymbolView name="chevron.left" size={18} tintColor={Palette.ink} />
-              </Pressable>
-              <Pressable
+              />
+              <IconButton
+                icon="info.circle"
+                variant="glass"
+                label="Source"
                 accessibilityLabel="Ouvrir la source de cette photo"
                 onPress={openOfficial}
-                style={({ pressed }) => [styles.sourceButton, styles.floatingButton, pressed && styles.pressed]}>
-                <SymbolView name="info.circle" size={17} tintColor={Palette.ink} />
-                <Text style={styles.sourceButtonText}>Source</Text>
-              </Pressable>
+              />
             </SafeAreaView>
             <View style={styles.comparisonHint}>
               <SymbolView name="hand.draw" size={14} tintColor={Palette.inkSoft} />
@@ -373,30 +378,30 @@ export function StationScreen() {
                 </View>
                 <Text style={styles.heroPlaceholderTitle}>
                   {archiveImagesLoading
-                    ? 'Ouverture de la planche-contact…'
+                    ? 'Ouverture des photos de 1970…'
                     : `${archiveCount} ${archiveCount > 1 ? 'photos de 1970' : 'photo de 1970'}`}
                 </Text>
                 <Text style={styles.heroPlaceholderCopy}>
                   {archiveImagesLoading
-                    ? 'Les aperçus sont chargés depuis la Bibliothèque historique de la Ville de Paris.'
-                    : 'Conservées par la Bibliothèque historique de la Ville de Paris. Ouvrez-les pour repérer le lieu.'}
+                    ? 'Chargement depuis la Bibliothèque historique de la Ville de Paris.'
+                    : 'Conservées par la Bibliothèque historique de la Ville de Paris.'}
                 </Text>
               </View>
             )}
             <SafeAreaView edges={['top']} style={styles.heroControls}>
-              <Pressable
+              <IconButton
+                icon="chevron.left"
+                variant="glass"
                 accessibilityLabel="Retour"
                 onPress={() => router.back()}
-                style={({ pressed }) => [styles.circleButton, pressed && styles.pressed]}>
-                <SymbolView name="chevron.left" size={18} tintColor={Palette.ink} />
-              </Pressable>
-              <Pressable
+              />
+              <IconButton
+                icon="info.circle"
+                variant="glass"
+                label="Source"
                 accessibilityLabel="Ouvrir la source de cette photo"
                 onPress={openOfficial}
-                style={({ pressed }) => [styles.sourceButton, pressed && styles.pressed]}>
-                <SymbolView name="info.circle" size={17} tintColor={Palette.ink} />
-                <Text style={styles.sourceButtonText}>Source</Text>
-              </Pressable>
+              />
             </SafeAreaView>
             <View style={styles.heroCaption}>
               <SourcePill label={isArchive ? 'Archives BHVP · 1970' : detail?.sourceLabel ?? 'Observatoire de Paris'} inverse />
@@ -419,7 +424,7 @@ export function StationScreen() {
         {images.length > 1 && !hasComparison ? (
           <View style={styles.filmstripWrap}>
             {isArchive ? <Text style={styles.archiveProgress}>
-              {detail?.publishedCount ?? 0} {detail?.publishedCount === 1 ? 'vue refaite identifiée' : 'vues refaites identifiées'} sur {archiveCount}
+              {detail?.publishedCount ?? 0} {detail?.publishedCount === 1 ? 'photo refaite' : 'photos refaites'} sur {archiveCount}
             </Text> : null}
             <ArchiveFilmstrip
               images={images}
@@ -433,10 +438,10 @@ export function StationScreen() {
         <View style={styles.content}>
           {isArchive ? (
             <>
-              <Text style={styles.kicker}>Secteur {title}</Text>
+              <Text style={styles.kicker}>{placeName}</Text>
               <View style={styles.viewHead}>
                 <Text style={[styles.title, styles.archiveTitle]}>
-                  Vue {selectedIndex + 1} sur {images.length || archiveCount}
+                  Photo {selectedIndex + 1} sur {images.length || archiveCount}
                 </Text>
                 {selectedImage ? (
                   <View style={[styles.statusChip, latestRecapture && styles.statusChipDone]}>
@@ -446,14 +451,14 @@ export function StationScreen() {
                       tintColor={latestRecapture ? Palette.white : Palette.go}
                     />
                     <Text style={[styles.statusChipText, latestRecapture && styles.statusChipTextDone]}>
-                      {latestRecapture ? 'Déjà refaite' : 'À retrouver'}
+                      {latestRecapture ? 'Déjà refaite' : 'À refaire'}
                     </Text>
                   </View>
                 ) : null}
               </View>
               {selectedImage && !latestRecapture ? (
                 <Text style={styles.storyText}>
-                  Personne ne l’a encore refaite. Les rues du reportage aident à repérer le lieu,
+                  Personne ne l’a encore refaite. Les indices ci-dessous aident à repérer le lieu,
                   le viseur vous guidera pour le cadrage.
                 </Text>
               ) : null}
@@ -464,8 +469,8 @@ export function StationScreen() {
                 {detail?.hasRecapture
                   ? 'PHOTO REFAITE'
                   : detail?.approximate ?? summary?.approximate
-                    ? 'MISSION À LOCALISER'
-                    : 'POINT DE VUE GÉOLOCALISÉ'}
+                    ? 'LIEU À RETROUVER'
+                    : 'PHOTO DE 2022'}
               </Text>
               <Text style={styles.title}>{title}</Text>
             </>
@@ -475,7 +480,7 @@ export function StationScreen() {
             <Text style={styles.description}>
               {detail?.description ??
                   (detail?.approximate ?? summary?.approximate
-                    ? 'Le point de vue exact reste à retrouver dans cette zone.'
+                    ? 'L’endroit exact reste à retrouver dans cette zone.'
                     : 'Un point de vue de référence de l’Observatoire photo participatif des paysages parisiens.')}
             </Text>
           ) : null}
@@ -528,12 +533,12 @@ export function StationScreen() {
                   <Pressable
                     key={recapture.id}
                     accessibilityRole="button"
-                    accessibilityLabel={`Voir la reprise de ${recapture.currentAuthor ? formatContributorName(recapture.currentAuthor) : 'ce contributeur'}`}
+                    accessibilityLabel={`Voir la photo refaite par ${recapture.currentAuthor ? formatContributorName(recapture.currentAuthor) : 'un participant'}`}
                     onPress={() => router.push({ pathname: '/station/[id]', params: { id: recapture.id } })}
                     style={({ pressed }) => [styles.archiveRecaptureLink, pressed && styles.shareButtonPressed]}>
                     <Text style={styles.archiveRecaptureLinkText}>
-                      Ouvrir la reprise de{' '}
-                      {recapture.currentAuthor ? formatContributorName(recapture.currentAuthor) : 'ce contributeur'}
+                      Photo refaite par{' '}
+                      {recapture.currentAuthor ? formatContributorName(recapture.currentAuthor) : 'un participant'}
                     </Text>
                     <SymbolView name="arrow.right" size={15} tintColor={Palette.go} />
                   </Pressable>
@@ -563,14 +568,12 @@ export function StationScreen() {
           {/* Un seul kicker orange par écran (celui du haut) : cette tête de section se
               contente de son titre. */}
           <Text style={styles.sectionTitle}>
-            {detail?.approximate ?? summary?.approximate
-              ? 'Explorer ce secteur'
-              : 'Repérer ce point'}
+            {detail?.approximate ?? summary?.approximate ? 'Trouver le lieu' : 'Y aller'}
           </Text>
 
           <Pressable
             accessibilityHint="Ouvre la carte complète centrée sur cette photo"
-            accessibilityLabel="Ouvrir ce point sur la carte"
+            accessibilityLabel="Voir le lieu sur la carte"
             accessibilityRole="button"
             onPress={openOnMap}
             style={({ pressed }) => [styles.mapWrap, pressed && styles.mapPressed]}>
@@ -613,7 +616,7 @@ export function StationScreen() {
               <Text style={styles.mapLegendText}>
                 {squareBounds
                   ? 'ZONE APPROXIMATIVE'
-                  : 'POSITION OBSERVATOIRE'}
+                  : 'POSITION DE LA PHOTO'}
               </Text>
             </View>
             <View pointerEvents="none" style={styles.mapAction}>
@@ -622,12 +625,10 @@ export function StationScreen() {
             </View>
           </Pressable>
 
-          <PrimaryButton
-            label="Voir l’archive source"
-            icon="arrow.up.right"
-            variant="outline"
-            onPress={openOfficial}
-            style={styles.secondaryButton}
+          <FieldSpotGuide
+            target={coordinate}
+            bounds={squareBounds}
+            approximate={detail?.approximate ?? summary?.approximate}
           />
 
           <Text style={styles.credit}>
@@ -803,7 +804,7 @@ export function StationScreen() {
       {referenceImage && recaptureImage ? (
         <PhotoViewer
           images={[referenceImage, recaptureImage]}
-          labels={[`${referenceYear} · ARCHIVE`, `${recaptureYearLabel} · REPRISE`]}
+          labels={[`${referenceYear} · PHOTO DE 1970`, `${recaptureYearLabel} · PHOTO REFAITE`]}
           initialIndex={comparisonViewerIndex}
           visible={comparisonViewerVisible}
           onClose={() => setComparisonViewerVisible(false)}
@@ -850,10 +851,6 @@ const styles = StyleSheet.create({
   },
   comparisonHero: {
     backgroundColor: Palette.fog,
-  },
-  floatingButton: {
-    backgroundColor: Palette.white,
-    ...Shadow.card,
   },
   comparisonHint: {
     paddingHorizontal: Spacing.three,
@@ -915,35 +912,6 @@ const styles = StyleSheet.create({
     right: Spacing.three,
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  circleButton: {
-    marginTop: Spacing.one,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadow.card,
-  },
-  sourceButton: {
-    minWidth: 88,
-    height: 44,
-    marginTop: Spacing.one,
-    paddingHorizontal: Spacing.twoHalf,
-    borderRadius: Radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
-    ...Shadow.card,
-  },
-  sourceButtonText: {
-    ...Typography.caption,
-    color: Palette.ink,
-    fontFamily: Fonts.sans,
-    fontWeight: '700',
   },
   heroCaption: {
     position: 'absolute',
@@ -1322,9 +1290,6 @@ const styles = StyleSheet.create({
     color: Palette.inkSoft,
     fontFamily: Fonts.sans,
     fontWeight: '700',
-  },
-  secondaryButton: {
-    marginTop: Spacing.two,
   },
   credit: {
     ...Typography.caption,

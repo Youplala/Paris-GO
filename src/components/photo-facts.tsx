@@ -96,7 +96,7 @@ export function ArchiveFacts({ year, metadata, fallbackAuthor }: ArchiveFactsPro
   const notes = metadata?.notes ?? [];
 
   return (
-    <Card era={String(year)} tone="archive" title="La photo d’origine">
+    <Card era={String(year)} tone="archive" title="La photo de 1970">
       <Fact icon="person.crop.square" label="Photographe">
         <Text style={styles.factValue}>
           {identified ? formatContributorName(author) : 'Photographe non identifié'}
@@ -115,7 +115,7 @@ export function ArchiveFacts({ year, metadata, fallbackAuthor }: ArchiveFactsPro
       ) : null}
 
       {locations.length ? (
-        <Fact icon="signpost.right" label="Rues du reportage">
+        <Fact icon="signpost.right" label="Indices">
           <View style={styles.chips}>
             {locations.map((location) => (
               <View key={location} style={styles.chip}>
@@ -124,7 +124,7 @@ export function ArchiveFacts({ year, metadata, fallbackAuthor }: ArchiveFactsPro
             ))}
           </View>
           <Text style={styles.factDetail}>
-            Le dossier du photographe couvre ces rues, pas forcément cette vue.
+            Rues du dossier du photographe : elles couvrent le reportage, pas forcément cette photo.
           </Text>
         </Fact>
       ) : null}
@@ -166,7 +166,7 @@ export function RecaptureFacts({
   const gap = year && year > referenceYear ? year - referenceYear : undefined;
 
   return (
-    <Card era={year ? String(year) : 'Aujourd’hui'} tone="today" title="La reprise">
+    <Card era={year ? String(year) : 'Aujourd’hui'} tone="today" title="La photo refaite">
       {description ? (
         <View style={styles.changed}>
           <Text style={styles.changedLabel}>Commentaire</Text>
@@ -178,7 +178,7 @@ export function RecaptureFacts({
       ) : null}
 
       <Fact icon="person.crop.circle" label="Refaite par">
-        {author ? formatContributorName(author) : 'Contributeur non renseigné'}
+        {author ? formatContributorName(author) : 'Participant non renseigné'}
       </Fact>
 
       {date ? (
