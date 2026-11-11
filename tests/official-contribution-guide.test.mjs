@@ -10,7 +10,7 @@ const componentSource = fs.readFileSync(
   'utf8',
 );
 
-test('explique le dépôt officiel en trois étapes courtes et honnêtes', () => {
+test('explique l’envoi officiel en trois étapes courtes et honnêtes', () => {
   assert.equal(OFFICIAL_CONTRIBUTION_GUIDE.length, 3);
 
   const copy = OFFICIAL_CONTRIBUTION_GUIDE
@@ -19,7 +19,7 @@ test('explique le dépôt officiel en trois étapes courtes et honnêtes', () =>
     .toLocaleLowerCase('fr');
 
   for (const expected of [
-    'archive',
+    'photo de 1970',
     'photo actuelle',
     'adresse',
     'commentaire',

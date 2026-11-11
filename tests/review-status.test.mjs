@@ -1,63 +1,58 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { getReviewStatusRows } from '../src/services/review-status.ts';
+import { getLocationNotice, getSaveStatus } from '../src/services/review-status.ts';
 
-function copies(input) {
-  return getReviewStatusRows(input).map((row) => row.copy);
-}
-
-test('décrit une capture réelle localisée et copiée dans Photos sans promettre un original', () => {
-  const rows = getReviewStatusRows({
-    simulated: false,
-    location: { latitude: 48.86, longitude: 2.34, precision: 'precise' },
-    saved: true,
-    savedToLibrary: true,
-  });
-
-  assert.deepEqual(rows.map((row) => row.icon), [
-    'checkmark.circle.fill',
-    'info.circle.fill',
-    'checkmark.circle.fill',
-  ]);
-  assert.match(rows[0].copy, /Position précise enregistrée/);
-  assert.match(rows[1].copy, /recadré et réencodé/);
-  assert.match(rows[2].copy, /copie ajoutée à Photos/);
-  assert.doesNotMatch(rows.map((row) => row.copy).join(' '), /original/i);
+test('une position précise ne produit aucun message', () => {
+  assert.equal(
+    getLocationNotice({
+      simulated: false,
+      location: { latitude: 48.86, longitude: 2.34, precision: 'precise' },
+    }),
+    undefined,
+  );
 });
 
-test('annonce explicitement une position approximative avant enregistrement', () => {
-  const result = copies({
+test('une position approximative ou absente est signalée à l’utilisateur', () => {
+  const approximate = getLocationNotice({
     simulated: false,
     location: { latitude: 48.86, longitude: 2.34, precision: 'approximate' },
-    saved: false,
-    savedToLibrary: false,
   });
-
-  assert.match(result[0], /Position approximative/);
-  assert.match(result[2], /pas encore enregistrée/);
+  assert.match(approximate.message, /Position approximative/);
+  const missing = getLocationNotice({ simulated: false });
+  assert.match(missing.message, /Position non enregistrée/);
+  assert.equal(missing.icon, 'exclamationmark.circle.fill');
 });
 
-test('distingue la copie privée durable du carnet de la copie facultative dans Photos', () => {
-  const rows = getReviewStatusRows({
-    simulated: false,
-    saved: true,
-    savedToLibrary: false,
-  });
-
-  assert.match(rows[0].copy, /Position non enregistrée/);
-  assert.equal(rows[2].icon, 'info.circle.fill');
-  assert.match(rows[2].copy, /conservée dans le carnet, mais pas dans Photos/);
+test('le simulateur ne revendique aucune position', () => {
+  assert.equal(getLocationNotice({ simulated: true }), undefined);
 });
 
-test('le simulateur ne revendique ni position ni fichier photo', () => {
-  const result = copies({
-    simulated: true,
-    saved: true,
-    savedToLibrary: false,
-  });
+test('le statut d’enregistrement suit la sauvegarde automatique', () => {
+  const base = { simulated: false, saving: false, saved: false, savedToLibrary: false, failed: false };
+  assert.equal(getSaveStatus({ ...base, saving: true }).tone, 'progress');
+  const done = getSaveStatus({ ...base, saved: true, savedToLibrary: true });
+  assert.equal(done.tone, 'done');
+  assert.match(done.message, /Mes photos/);
+  assert.match(done.message, /Photos \(Récents\)/);
+  const noLibrary = getSaveStatus({ ...base, saved: true });
+  assert.match(noLibrary.message, /n’a pas abouti/);
+  assert.equal(getSaveStatus({ ...base, failed: true }).tone, 'error');
+});
 
-  assert.match(result[0], /Mode démo/);
-  assert.match(result[1], /aucune photo créée/);
-  assert.match(result[2], /sans fichier photo/);
+test('le simulateur ne prétend pas avoir créé de photo', () => {
+  const status = getSaveStatus({
+    simulated: true, saving: false, saved: true, savedToLibrary: false, failed: false,
+  });
+  assert.match(status.message, /Aucune photo créée/);
+  assert.doesNotMatch(status.message, /Photos \(Récents\)/);
+});
+
+test('aucun jargon technique ni mot banni dans les messages', () => {
+  const base = { simulated: false, saving: false, saved: true, savedToLibrary: true, failed: false };
+  const copy = [
+    getSaveStatus(base).message,
+    getLocationNotice({ simulated: false }).message,
+  ].join(' ');
+  assert.doesNotMatch(copy, /carnet|dépôt|capture|JPEG|réencodé/i);
 });

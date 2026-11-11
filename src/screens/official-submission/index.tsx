@@ -17,10 +17,11 @@ import WebView, {
   type WebViewNavigation,
 } from 'react-native-webview';
 
+import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { OfficialContributionGuide } from '@/components/official-contribution-guide';
 import { OfficialIdentitySheet } from '@/components/official-identity-sheet';
-import { Fonts, HitSize, Kicker, Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { Fonts, HitSize, Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useBhvpImages } from '@/hooks/use-bhvp-images';
 import { useStationDetail } from '@/hooks/use-station-detail';
 import { useUserLocation } from '@/hooks/use-user-location';
@@ -31,10 +32,6 @@ import {
   validatedHistoricalReferenceUri,
 } from '@/services/camera-reference';
 import { isOfficialCaptureAuthorized } from '@/services/official-capture-authority';
-import {
-  markOfficialContributionGuideSeen,
-  shouldShowOfficialContributionGuide,
-} from '@/services/official-contribution-guide-storage';
 import {
   buildOfficialFormUsabilityScript,
   officialChromeIsExpanded,
@@ -70,7 +67,15 @@ import {
   shouldInjectOfficialScripts,
 } from '@/services/official-navigation';
 import { OFFICIAL_SUBMISSION_FIXTURE_HTML } from '@/services/official-submission-fixture';
-import { isSavedCaptureAuthorized, updateCapturePreparation } from '@/services/fieldbook';
+import {
+  isSavedCaptureAuthorized,
+  markCaptureSubmitted,
+  updateCapturePreparation,
+} from '@/services/fieldbook';
+import {
+  markOfficialIdentityOffered,
+  shouldOfferOfficialIdentity,
+} from '@/services/send-identity-offer';
 import {
   buildObservatoirePrefillScript,
   OFFICIAL_SUBMISSION_FIXTURE_ENABLED,
@@ -80,28 +85,6 @@ import {
   type OfficialFormImagePreparation,
   type PreparedImages,
 } from '@/services/official-submission';
-
-// Libellés des champs que le pré-remplissage signale, dans l'ordre du formulaire.
-const PREFILLED_FIELD_LABELS: [string, string][] = [
-  ['address', 'Adresse'],
-  ['title', 'Titre'],
-  ['arrondissement', 'Arrondissement'],
-  ['city', 'Ville'],
-  ['captureDate', 'Date'],
-  ['device', 'Appareil'],
-  ['latitude', 'Position GPS'],
-  ['identity', 'Nom'],
-  ['email', 'E-mail'],
-  ['age', 'Âge'],
-  ['residenceCity', 'Commune'],
-  ['country', 'Pays'],
-];
-
-function labelsForPrefilledFields(fields: string[]) {
-  const present = new Set(fields);
-  if (present.has('longitude')) present.add('latitude');
-  return PREFILLED_FIELD_LABELS.filter(([key]) => present.has(key)).map(([, label]) => label);
-}
 
 type ThumbState = 'ready' | 'attached' | 'preparing' | 'error' | 'pending';
 
@@ -303,7 +286,6 @@ export function OfficialSubmissionScreen() {
   const [loading, setLoading] = useState(true);
   const [formError, setFormError] = useState<string>();
   const [webKey, setWebKey] = useState(0);
-  const [prefilledCount, setPrefilledCount] = useState(0);
   const [validationMessage, setValidationMessage] = useState<string>();
   const [submissionStatus, setSubmissionStatus] = useState<'editing' | 'success'>('editing');
   const [preparingImages, setPreparingImages] = useState(false);
@@ -321,7 +303,6 @@ export function OfficialSubmissionScreen() {
   // Repliée d'emblée : le formulaire a besoin de la hauteur. Elle se déplie d'elle-même en cas
   // d'erreur (`officialChromeIsExpanded`).
   const [detailsExpanded, setDetailsExpanded] = useState(false);
-  const [prefilledFields, setPrefilledFields] = useState<string[]>([]);
   // Les champs déjà remplis sont repliés dans le formulaire : l'écran natif en montre la valeur.
   const [showAllFields, setShowAllFields] = useState(false);
   // Identité mémorisée sur l'appareil, à la demande de l'utilisateur uniquement.
@@ -329,8 +310,14 @@ export function OfficialSubmissionScreen() {
   const [identitySheetVisible, setIdentitySheetVisible] = useState(false);
   useEffect(() => {
     let active = true;
-    void loadOfficialIdentity().then((stored) => {
-      if (active) setIdentity(stored);
+    void loadOfficialIdentity().then(async (stored) => {
+      if (!active) return;
+      setIdentity(stored);
+      // Sans identité mémorisée, on la propose une fois d'emblée (jamais remplie à sa place).
+      if (!stored && (await shouldOfferOfficialIdentity()) && active) {
+        setIdentitySheetVisible(true);
+        void markOfficialIdentityOffered();
+      }
     });
     return () => {
       active = false;
@@ -341,16 +328,6 @@ export function OfficialSubmissionScreen() {
   useEffect(() => {
     if (!isSimulated && !hasSavedCoordinate) void locate();
   }, [hasSavedCoordinate, isSimulated, locate]);
-
-  useEffect(() => {
-    let active = true;
-    void shouldShowOfficialContributionGuide().then((shouldShow) => {
-      if (active && shouldShow) setGuideVisible(true);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const prefill = useMemo(() => {
     const exactStationCoordinate = detail && !detail.approximate ? detail.coordinate : undefined;
@@ -415,10 +392,25 @@ export function OfficialSubmissionScreen() {
   }, [injectedScript, loading]);
 
   const blockPopup = useCallback(() => undefined, []);
-  const completeGuide = useCallback(() => {
-    setGuideVisible(false);
-    void markOfficialContributionGuideSeen();
-  }, []);
+  const completeGuide = useCallback(() => setGuideVisible(false), []);
+  // Un seul passage à « envoyée », que la réussite vienne du pont ou de la navigation.
+  const successHandled = useRef(false);
+  const confirmSuccess = useCallback(() => {
+    if (successHandled.current) return;
+    successHandled.current = true;
+    setSubmissionStatus('success');
+    setImagePreparation((value) => ({
+      ...value,
+      files: {},
+      preparationId: undefined,
+      sources: {},
+    }));
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // Jamais en test local ni en démo, et seulement pour une photo réellement enregistrée.
+    if (!OFFICIAL_SUBMISSION_FIXTURE_ENABLED && !isSimulated && captureId) {
+      void markCaptureSubmitted(captureId).catch(() => undefined);
+    }
+  }, [captureId, isSimulated]);
 
   const retry = () => {
     setFormError(undefined);
@@ -442,10 +434,6 @@ export function OfficialSubmissionScreen() {
     ) {
       return;
     }
-    if (message.type === 'prefill') {
-      setPrefilledCount(message.count);
-      setPrefilledFields(message.fields);
-    }
     if (message.type === 'files-ready') {
       setAttachedFileCount(message.count);
       setImageError(undefined);
@@ -455,16 +443,7 @@ export function OfficialSubmissionScreen() {
       setAttachedFileCount(0);
       setImageError(message.message);
     }
-    if (message.type === 'success') {
-      setSubmissionStatus('success');
-      setImagePreparation((value) => ({
-        ...value,
-        files: {},
-        preparationId: undefined,
-        sources: {},
-      }));
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
+    if (message.type === 'success') confirmSuccess();
     if (message.type === 'form-error') {
       setValidationMessage(
         message.message || 'Le formulaire officiel signale un champ à vérifier.',
@@ -477,15 +456,7 @@ export function OfficialSubmissionScreen() {
 
   const onNavigationChange = (navigation: WebViewNavigation) => {
     currentPageUrl.current = navigation.url;
-    if (officialPageKind(navigation.url) === 'success') {
-      setSubmissionStatus('success');
-      setImagePreparation((value) => ({
-        ...value,
-        files: {},
-        preparationId: undefined,
-        sources: {},
-      }));
-    }
+    if (officialPageKind(navigation.url) === 'success') confirmSuccess();
   };
 
   const prepareImages = useCallback(async (requestInput?: unknown) => {
@@ -589,7 +560,7 @@ export function OfficialSubmissionScreen() {
     if (!allowed && request.isTopFrame !== false) {
       // Une page hors du formulaire reste bloquée ici, jamais confiée à Safari : on le dit, et on
       // garde sa destination dans les journaux de développement pour pouvoir l'examiner.
-      if (__DEV__) console.warn('[dépôt officiel] navigation bloquée :', describeBlockedUrl(request.url));
+      if (__DEV__) console.warn('[envoi officiel] navigation bloquée :', describeBlockedUrl(request.url));
       setValidationMessage('Ce lien mène hors du formulaire officiel ; il ne s’ouvre pas dans Paris GO.');
     }
     return allowed;
@@ -600,35 +571,42 @@ export function OfficialSubmissionScreen() {
   const hasPreparationError = Boolean(
     preparedImages.current.error || preparedImages.reference.error,
   );
-  const prefilledLabels = labelsForPrefilledFields(prefilledFields);
   const chromeExpanded = officialChromeIsExpanded({
     detailsRequested: detailsExpanded,
     hasBlockingMessage: Boolean(imageError || validationMessage || hasPreparationError),
   });
 
+  const statusTitle = isSimulated
+    ? 'Aperçu de démonstration'
+    : attachedFileCount === 2
+      ? '2/2 photos jointes'
+      : preparingImages
+        ? 'Préparation des photos…'
+        : `${preparedCount}/2 photos prêtes`;
+  const statusMeta = identity
+    ? `${identity.fullName} · à vous : règlement, Envoyer`
+    : 'À vous : nom, e-mail, règlement, Envoyer';
+
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
         <View style={styles.header}>
-          <Pressable
+          <IconButton
+            icon="xmark"
             accessibilityLabel="Fermer le formulaire"
             onPress={() => router.back()}
-            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
-            <SymbolView name="xmark" size={17} tintColor={Palette.ink} />
-          </Pressable>
+          />
           <View style={styles.headerCopy}>
             <Text style={styles.headerKicker}>
               {OFFICIAL_SUBMISSION_FIXTURE_ENABLED ? 'Test local' : 'Observatoire de Paris'}
             </Text>
-            <Text style={styles.headerTitle}>Déposer ma reprise</Text>
+            <Text style={styles.headerTitle}>Envoyer ma photo</Text>
           </View>
-          <Pressable
-            accessibilityLabel="Comprendre le dépôt"
-            accessibilityRole="button"
+          <IconButton
+            icon="questionmark.circle"
+            accessibilityLabel="Aide pour envoyer ma photo"
             onPress={() => setGuideVisible(true)}
-            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
-            <SymbolView name="questionmark.circle.fill" size={19} tintColor={Palette.parisBlue} />
-          </Pressable>
+          />
         </View>
       </SafeAreaView>
 
@@ -636,7 +614,7 @@ export function OfficialSubmissionScreen() {
         <View style={styles.summary}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={chromeExpanded ? 'Réduire le récapitulatif' : 'Afficher le récapitulatif'}
+            accessibilityLabel={chromeExpanded ? 'Masquer les détails' : 'Afficher les détails'}
             accessibilityState={{ expanded: chromeExpanded }}
             onPress={() => {
               void Haptics.selectionAsync();
@@ -656,19 +634,9 @@ export function OfficialSubmissionScreen() {
               />
             </View>
             <View style={styles.summaryCopy}>
-              <Text style={styles.summaryTitle}>
-                {isSimulated
-                  ? 'Aperçu de démonstration'
-                  : attachedFileCount === 2
-                    ? 'Prêt, il ne reste que vous'
-                    : preparingImages
-                      ? 'Préparation des photos…'
-                      : `${preparedCount}/2 photo${preparedCount > 1 ? 's' : ''} préparée${preparedCount > 1 ? 's' : ''}`}
-              </Text>
-              <Text style={styles.summaryMeta} numberOfLines={1}>
-                {chromeExpanded
-                  ? `${attachedFileCount}/2 photos jointes · ${prefilledCount} champ${prefilledCount > 1 ? 's' : ''} rempli${prefilledCount > 1 ? 's' : ''}`
-                  : `${attachedFileCount}/2 photos · ${prefilledCount} champs · à vous : ${identity ? 'règlement et envoi' : 'identité et envoi'}`}
+              <Text style={styles.summaryTitle}>{statusTitle}</Text>
+              <Text style={styles.summaryMeta} numberOfLines={2}>
+                {statusMeta}
               </Text>
             </View>
             <SymbolView
@@ -680,17 +648,6 @@ export function OfficialSubmissionScreen() {
 
           {chromeExpanded ? (
             <View style={styles.summaryBody}>
-              {prefilledLabels.length ? (
-                <View style={styles.chips}>
-                  {prefilledLabels.map((label) => (
-                    <View key={label} style={styles.chip}>
-                      <SymbolView name="checkmark" size={11} tintColor={Palette.lichen} />
-                      <Text style={styles.chipText}>{label}</Text>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-
               {locating ? (
                 <Text style={styles.summaryMeta}>Recherche de votre position…</Text>
               ) : locationError && !isPrecise ? (
@@ -699,12 +656,12 @@ export function OfficialSubmissionScreen() {
 
               {!preparedImages.current.ready && preparedImages.current.error ? (
                 <Text style={styles.fileError}>
-                  Photo 2026 : {preparationErrorLabel(preparedImages.current.error)}
+                  Votre photo : {preparationErrorLabel(preparedImages.current.error)}
                 </Text>
               ) : null}
               {!preparedImages.reference.ready && preparedImages.reference.error ? (
                 <Text style={styles.fileError}>
-                  Archive : {preparationErrorLabel(preparedImages.reference.error)}
+                  Photo de 1970 : {preparationErrorLabel(preparedImages.reference.error)}
                 </Text>
               ) : null}
 
@@ -728,24 +685,6 @@ export function OfficialSubmissionScreen() {
                 </View>
                 <Text style={styles.identityAction}>{identity ? 'Modifier' : 'Ajouter'}</Text>
               </Pressable>
-
-              <View style={styles.todo}>
-                <SymbolView name="hand.tap.fill" size={15} tintColor={Palette.go} />
-                <Text style={styles.todoText}>
-                  <Text style={styles.todoStrong}>À vous : </Text>
-                  {identity
-                    ? 'vérifier vos informations, cocher le règlement, puis Envoyer.'
-                    : 'nom, e-mail, règlement, puis Envoyer, dans le formulaire ci-dessous.'}
-                </Text>
-              </View>
-              <View style={styles.todo}>
-                <SymbolView name="lock.fill" size={13} tintColor={Palette.lichen} />
-                <Text style={styles.trustText}>
-                  {OFFICIAL_SUBMISSION_FIXTURE_ENABLED
-                    ? 'Formulaire de test embarqué : aucune donnée ni photo ne quitte cet appareil.'
-                    : 'Les deux photos sont ajoutées automatiquement. Votre identité, le règlement et l’envoi final restent sous votre contrôle ; Paris GO ne reçoit rien.'}
-                </Text>
-              </View>
 
               <View style={styles.summaryActions}>
                 <Pressable
@@ -779,6 +718,15 @@ export function OfficialSubmissionScreen() {
               </View>
             </View>
           ) : null}
+
+          <View style={styles.trust}>
+            <SymbolView name="lock.fill" size={13} tintColor={Palette.lichen} />
+            <Text style={styles.trustText}>
+              {OFFICIAL_SUBMISSION_FIXTURE_ENABLED
+                ? 'Formulaire de test embarqué : aucune donnée ni photo ne quitte cet appareil.'
+                : 'Les deux photos sont ajoutées automatiquement. Identité, règlement et envoi restent sous votre contrôle ; Paris GO ne reçoit rien.'}
+            </Text>
+          </View>
         </View>
       ) : null}
 
@@ -805,14 +753,17 @@ export function OfficialSubmissionScreen() {
               <SymbolView name="checkmark" size={32} tintColor={Palette.white} />
             </View>
             <Text style={styles.successTitle}>
-              {OFFICIAL_SUBMISSION_FIXTURE_ENABLED ? 'Parcours validé' : 'Contribution transmise'}
+              {OFFICIAL_SUBMISSION_FIXTURE_ENABLED ? 'Parcours validé' : 'Photo envoyée'}
             </Text>
             <Text style={styles.successText}>
               {OFFICIAL_SUBMISSION_FIXTURE_ENABLED
-                ? 'Les champs publics et les deux photos automatiques ont été vérifiés. Aucune contribution n’a été envoyée.'
-                : 'Elle rejoint maintenant la file de modération de l’Observatoire. Le CAUE pourra vous contacter à l’adresse renseignée dans le formulaire.'}
+                ? 'Les champs publics et les deux photos automatiques ont été vérifiés. Aucune photo n’a été envoyée.'
+                : 'Elle sera publiée après validation par l’Observatoire.'}
             </Text>
-            <PrimaryButton label="Revenir à la carte" onPress={() => router.replace('/map')} />
+            <PrimaryButton
+              label="Voir mes photos"
+              onPress={() => router.replace('/photos' as never)}
+            />
           </View>
         ) : formError ? (
           <View style={styles.errorState}>
@@ -843,8 +794,6 @@ export function OfficialSubmissionScreen() {
                 setLoading(true);
                 setFormError(undefined);
                 setValidationMessage(undefined);
-                setPrefilledCount(0);
-                setPrefilledFields([]);
                 setAttachedFileCount(0);
               }}
               onLoadEnd={(event) => {
@@ -956,10 +905,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(8, 17, 22, 0.72)',
   },
   thumbLabelText: {
-    ...Kicker,
-    fontSize: 10,
-    lineHeight: 13,
-    letterSpacing: 0.2,
+    ...Typography.caption,
+    fontWeight: '700',
     color: Palette.white,
   },
   thumbBadge: {
@@ -1012,9 +959,13 @@ const styles = StyleSheet.create({
   identityTitle: { ...Typography.body, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
   identityMeta: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   identityAction: { ...Typography.caption, color: Palette.go, fontFamily: Fonts.sans, fontWeight: '700' },
-  todo: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
-  todoText: { ...Typography.caption, flex: 1, color: Palette.ink, fontFamily: Fonts.sans },
-  todoStrong: { fontWeight: '700', color: Palette.go },
+  trust: {
+    paddingHorizontal: Spacing.twoHalf,
+    paddingBottom: Spacing.two,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.two,
+  },
   trustText: { ...Typography.caption, flex: 1, color: Palette.inkSoft, fontFamily: Fonts.sans },
   summaryActions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   summaryAction: {
@@ -1043,34 +994,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Palette.white,
   },
-  headerButton: {
-    width: HitSize,
-    height: HitSize,
-    borderRadius: HitSize / 2,
-    backgroundColor: Palette.fog,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   headerCopy: { flex: 1, alignItems: 'center' },
   headerKicker: {
-    ...Kicker,
-    fontSize: 13,
-    lineHeight: 18,
-    color: Palette.go,
+    ...Typography.caption,
+    color: Palette.inkSoft,
+    fontFamily: Fonts.sans,
   },
   headerTitle: {
-    marginTop: 2,
+    ...Typography.body,
     color: Palette.ink,
     fontFamily: Fonts.sans,
-    fontSize: 17,
     fontWeight: '700',
   },
   inlineError: {
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.two,
+    ...Typography.caption,
     color: Palette.go,
     fontFamily: Fonts.sans,
-    fontSize: 13,
   },
   settingsLink: {
     paddingHorizontal: Spacing.three,
@@ -1094,10 +1035,9 @@ const styles = StyleSheet.create({
   },
   validationText: {
     flex: 1,
+    ...Typography.caption,
     color: Palette.go,
     fontFamily: Fonts.sans,
-    fontSize: 13,
-    lineHeight: 18,
   },
   webContainer: {
     flex: 1,
@@ -1115,7 +1055,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.three,
   },
-  loadingText: { color: Palette.inkSoft, fontFamily: Fonts.sans, fontSize: 13, lineHeight: 18 },
+  loadingText: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   errorState: {
     flex: 1,
     paddingHorizontal: Spacing.five,
@@ -1124,17 +1064,15 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     marginTop: Spacing.three,
+    ...Typography.display,
     color: Palette.ink,
     fontFamily: Fonts.display,
-    fontSize: 26,
-    fontWeight: '900',
   },
   errorText: {
     marginVertical: Spacing.three,
+    ...Typography.body,
     color: Palette.inkSoft,
     fontFamily: Fonts.sans,
-    fontSize: 13,
-    lineHeight: 19,
     textAlign: 'center',
   },
 
@@ -1154,17 +1092,15 @@ const styles = StyleSheet.create({
   },
   successTitle: {
     marginTop: Spacing.three,
+    ...Typography.display,
     color: Palette.ink,
     fontFamily: Fonts.display,
-    fontSize: 31,
-    fontWeight: '900',
   },
   successText: {
     marginVertical: Spacing.three,
+    ...Typography.body,
     color: Palette.inkSoft,
     fontFamily: Fonts.sans,
-    fontSize: 13,
-    lineHeight: 20,
     textAlign: 'center',
   },
   pressed: { opacity: 0.76, transform: [{ scale: 0.97 }] },
