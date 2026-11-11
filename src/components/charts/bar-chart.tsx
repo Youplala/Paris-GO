@@ -17,7 +17,7 @@ type BarChartProps = {
   data: Bar[];
   height?: number;
   accentColor?: string;
-  /** Suffixe de l'infobulle, par exemple « reprises ». */
+  /** Suffixe de l'infobulle, par exemple « photos ». */
   unit?: string;
   /** Barre lue au premier affichage ; la dernière par défaut. */
   initialKey?: string;

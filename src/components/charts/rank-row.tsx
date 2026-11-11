@@ -5,7 +5,7 @@ import Animated, { useAnimatedStyle, useDerivedValue, withDelay, withSpring } fr
 import { Fonts, Kicker, Palette, Radius, Spacing, Typography } from '@/constants/theme';
 
 const SPRING = { damping: 18, stiffness: 130, mass: 0.7 };
-/** Le podium prend l'orange de la mission ; le reste du classement reste bleu nuit. */
+/** Le podium prend l'orange de l'app ; le reste du classement reste bleu nuit. */
 const PODIUM = 3;
 
 type RankRowProps = {

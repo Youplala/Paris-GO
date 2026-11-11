@@ -27,6 +27,7 @@ import {
 import { useStations } from '@/providers/stations-provider';
 import { HISTORIC_GRID_COUNT } from '@/services/onboarding';
 import { formatContributorName } from '@/utils/community-stats';
+import { cellPlaceName } from '@/utils/place-name';
 
 const BUCKET_COLORS: Record<string, string> = {
   untouched: 'rgba(204, 72, 28, 0.55)',
@@ -86,7 +87,11 @@ function Section({
 
 export function CoverageScreen() {
   const router = useRouter();
-  const { coverage, snapshotVersion, grid, stats } = useStations();
+  const { coverage, snapshotVersion, grid, stats, stations } = useStations();
+  const locatedStations = useMemo(
+    () => stations.filter((station) => Boolean(station.arrondissement)),
+    [stations],
+  );
 
   const priorityCells = useMemo(
     () =>
@@ -155,8 +160,8 @@ export function CoverageScreen() {
             <SourcePill version={snapshotVersion} />
           </View>
 
-          <Text style={styles.kicker}>OÙ EN EST LA CARTE</Text>
-          <Text style={styles.title}>Ce qui a été refait, ce qu’il reste à photographier.</Text>
+          <Text style={styles.kicker}>OÙ EN EST PARIS</Text>
+          <Text style={styles.title}>Ce qui est refait, ce qui reste à refaire.</Text>
         </SafeAreaView>
 
         <Animated.View entering={FadeInDown.duration(420)} style={styles.heroCard}>
@@ -171,14 +176,13 @@ export function CoverageScreen() {
           <ProgressBar percentage={coverage.percentage} height={10} tone="onDark" style={styles.heroTrack} />
           <Text style={styles.heroDetail}>
             {coverage.published1970.toLocaleString('fr-FR')} photos refaites sur{' '}
-            {coverage.total1970.toLocaleString('fr-FR')} photos numérisées. Le chantier est immense,
-            c’est normal : chaque photo compte.
+            {coverage.total1970.toLocaleString('fr-FR')}. Chaque photo compte.
           </Text>
         </Animated.View>
 
         <Section
-          title={`${HISTORIC_GRID_COUNT.toLocaleString('fr-FR')} secteurs historiques`}
-          copy={`${grid.length.toLocaleString('fr-FR')} secteurs de 250 m sont actuellement référencés dans Paris GO. Voici où en est chacun d’eux.`}
+          title={`${HISTORIC_GRID_COUNT.toLocaleString('fr-FR')} lieux historiques`}
+          copy={`${grid.length.toLocaleString('fr-FR')} lieux sont dans Paris GO. Voici où en est chacun.`}
           delay={60}>
           <StackedShare data={shares} />
         </Section>
@@ -225,8 +229,8 @@ export function CoverageScreen() {
         </Section>
 
         <Section
-          title="Celles et ceux qui refont Paris"
-          copy={`${stats.contributorCount} personnes créditées par leur prénom, comme le prévoit le règlement de l’Observatoire.`}
+          title="Ceux qui refont Paris"
+          copy={`${stats.contributorCount} participants, crédités par leur prénom comme le prévoit le règlement de l’Observatoire.`}
           delay={280}>
           <View>
             {topContributors.map((contributor, index) => (
@@ -250,7 +254,7 @@ export function CoverageScreen() {
             ))}
           </View>
           <SeeAllButton
-            label={`Voir les ${stats.contributorCount} contributeurs`}
+            label={`Voir les ${stats.contributorCount} participants`}
             onPress={() => router.push('/contributors')}
           />
         </Section>
@@ -258,7 +262,7 @@ export function CoverageScreen() {
         {topPhotographers.length ? (
           <Section
             title="Les photographes de 1970 les plus repris"
-            copy={`${stats.archivePhotographers.length} photographes identifiés ont déjà vu au moins une de leurs vues refaite.`}
+            copy={`${stats.archivePhotographers.length} photographes identifiés ont déjà vu au moins une de leurs photos refaite.`}
             delay={320}>
             <View>
               {topPhotographers.map((photographer, index) => (
@@ -268,7 +272,7 @@ export function CoverageScreen() {
                   label={formatContributorName(photographer.name)}
                   count={photographer.count}
                   max={topPhotographers[0]?.count ?? 1}
-                  unit="vues refaites"
+                  unit="photos refaites"
                   first={index === 0}
                   last={index === topPhotographers.length - 1}
                 />
@@ -282,8 +286,8 @@ export function CoverageScreen() {
         ) : null}
 
         <Section
-          title="Les secteurs les plus fournis"
-          copy="Ces secteurs contiennent le plus de photos qui n’ont pas encore été refaites."
+          title="Les lieux à refaire en premier"
+          copy="Les lieux qui comptent le plus de photos à refaire."
           delay={360}>
           <View style={styles.priority}>
             {priorityCells.map((cell, index) => (
@@ -297,9 +301,9 @@ export function CoverageScreen() {
                 style={({ pressed }) => [styles.priorityRow, pressed && styles.pressedSoft]}>
                 <Text style={styles.priorityRank}>{String(index + 1).padStart(2, '0')}</Text>
                 <View style={styles.priorityText}>
-                  <Text style={styles.priorityTitle}>Secteur {cell.name}</Text>
+                  <Text style={styles.priorityTitle}>{cellPlaceName(cell, locatedStations)}</Text>
                   <Text style={styles.priorityMeta}>
-                    {cell.remaining1970} photos à retrouver · {cell.percentage} % fait
+                    {cell.remaining1970} photos à refaire · {cell.percentage} % fait
                   </Text>
                 </View>
                 <SymbolView name="chevron.right" size={13} tintColor={Palette.inkSoft} />
