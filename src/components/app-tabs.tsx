@@ -18,8 +18,6 @@ export default function AppTabs() {
       shadowColor={Palette.line}
       indicatorColor={Palette.goSoft}
       tintColor={Palette.go}
-      disableTransparentOnScrollEdge
-      shadowColor={Palette.line}
       labelStyle={{
         default: { color: Palette.inkSoft, fontSize: 11 },
         selected: { color: Palette.go, fontSize: 11, fontWeight: '700' },
