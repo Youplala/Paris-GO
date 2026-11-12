@@ -4,6 +4,8 @@ import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   type AccessibilityActionEvent,
+  ActivityIndicator,
+  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -50,6 +52,7 @@ type BeforeAfterSliderProps = {
   onPressSide?: (side: 'before' | 'after') => void;
   /** `bottom` libère le haut de l'image quand des boutons flottent dessus. */
   labelsPosition?: 'top' | 'bottom';
+  showGestureHint?: boolean;
 };
 
 const MIN_RATIO = 0.08;
@@ -110,8 +113,16 @@ export function BeforeAfterSlider({
   playIntro,
   onPressSide,
   labelsPosition = 'top',
+  showGestureHint = false,
 }: BeforeAfterSliderProps) {
   const [width, setWidth] = useState(0);
+  const [attempt, setAttempt] = useState(0);
+  const [loadedBefore, setLoadedBefore] = useState<string>();
+  const [loadedAfter, setLoadedAfter] = useState<string>();
+  const [failedPair, setFailedPair] = useState<string>();
+  const requestKey = `${JSON.stringify([before, after])}:${attempt}`;
+  const ready = loadedBefore === requestKey && loadedAfter === requestKey;
+  const failed = failedPair === requestKey;
   const { height: windowHeight } = useWindowDimensions();
   const { aspectRatio } = useImageAspectRatio(before);
   // La comparaison montre le cadre complet. Pour un format exceptionnellement étroit, elle
@@ -151,6 +162,7 @@ export function BeforeAfterSlider({
   }, []);
 
   const pan = Gesture.Pan()
+    .enabled(ready)
     // Laisse passer les gestes verticaux : sans cela le slider capture tout et la page
     // devient impossible à faire défiler dès que le doigt démarre sur la comparaison.
     .activeOffsetX([-12, 12])
@@ -191,6 +203,7 @@ export function BeforeAfterSlider({
     });
 
   const tap = Gesture.Tap()
+    .enabled(ready)
     .onTouchesDown(() => {
       'worklet';
       cancelAnimation(ratio);
@@ -213,13 +226,7 @@ export function BeforeAfterSlider({
   const gesture = Gesture.Exclusive(pan, tap);
 
   const clipStyle = useAnimatedStyle(() => ({
-    left: ratio.value * containerWidth.value,
-    width: Math.max(0, containerWidth.value - ratio.value * containerWidth.value),
-  }));
-
-  const afterImageStyle = useAnimatedStyle(() => ({
-    left: -ratio.value * containerWidth.value,
-    width: containerWidth.value,
+    width: ratio.value * containerWidth.value,
   }));
 
   const dividerStyle = useAnimatedStyle(() => ({
@@ -256,7 +263,7 @@ export function BeforeAfterSlider({
     <View onLayout={(event) => setWidth(event.nativeEvent.layout.width)} style={style}>
       <GestureDetector gesture={gesture}>
         <View
-        accessible
+        accessible={ready}
         accessibilityActions={[
           { name: 'increment', label: `Afficher plus de ${beforeLabel}` },
           { name: 'decrement', label: `Afficher plus de ${afterLabel}` },
@@ -272,23 +279,36 @@ export function BeforeAfterSlider({
         testID="before-after-slider">
         <BeforeAfterSliderIntro
           active={active}
-          play={playIntro === true && width > 0}
+          play={playIntro === true && width > 0 && ready}
           ratio={ratio}
           reducedMotion={reducedMotion}
         />
-        <Image source={before} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} />
+        <Image
+          key={`after:${requestKey}`}
+          source={after}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          onLoad={() => setLoadedAfter(requestKey)}
+          onError={() => setFailedPair(requestKey)}
+        />
 
-        <Animated.View pointerEvents="none" style={[styles.afterClip, clipStyle]}>
-          <Animated.View style={[styles.afterImageHolder, afterImageStyle, { height: resolvedHeight }]}>
-            <Image
-              source={after}
-              style={[StyleSheet.absoluteFill, { width: resolvedWidth }]}
-              contentFit="cover"
-              transition={180}
-            />
-          </Animated.View>
+        {/* Garder les deux images à la taille du cadre. Seul le masque de gauche change :
+            une image décalée dans un second conteneur animé pouvait disparaître sur iOS. */}
+        <Animated.View
+          collapsable={false}
+          pointerEvents="none"
+          style={[styles.beforeClip, clipStyle]}>
+          <Image
+            key={`before:${requestKey}`}
+            source={before}
+            style={{ width: resolvedWidth, height: resolvedHeight }}
+            contentFit="cover"
+            onLoad={() => setLoadedBefore(requestKey)}
+            onError={() => setFailedPair(requestKey)}
+          />
         </Animated.View>
 
+        {ready ? <>
         <Animated.View pointerEvents="none" style={[styles.beforeLabel, labelsPosition === 'bottom' && styles.labelBottom, beforeLabelStyle]}>
           <Text style={styles.labelText}>{beforeLabel}</Text>
         </Animated.View>
@@ -301,6 +321,32 @@ export function BeforeAfterSlider({
             <SymbolView name="arrow.left.and.right" size={14} tintColor={Palette.parisBlue} />
           </Animated.View>
         </Animated.View>
+        {showGestureHint ? (
+          <View pointerEvents="none" style={styles.gestureHint}>
+            <SymbolView name="hand.draw.fill" size={14} tintColor={Palette.white} />
+            <Text style={styles.gestureHintText}>Glissez pour comparer</Text>
+          </View>
+        ) : null}
+        </> : (
+          <View style={styles.loadingOverlay} accessibilityLiveRegion="polite">
+            {failed ? (
+              <>
+                <Text style={styles.loadingText}>La comparaison n’a pas pu charger.</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setAttempt((value) => value + 1)}
+                  style={styles.retryButton}>
+                  <Text style={styles.retryText}>Réessayer</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <ActivityIndicator color={Palette.parisBlue} />
+                <Text style={styles.loadingText}>Chargement des deux photos…</Text>
+              </>
+            )}
+          </View>
+        )}
         </View>
       </GestureDetector>
     </View>
@@ -313,16 +359,49 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.blueMist,
     ...Shadow.card,
   },
-  afterClip: {
+  beforeClip: {
     position: 'absolute',
+    left: 0,
     top: 0,
     bottom: 0,
     overflow: 'hidden',
   },
-  afterImageHolder: {
-    position: 'absolute',
-    top: 0,
+  loadingOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: Palette.blueMist,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.three,
+    padding: Spacing.three,
   },
+  loadingText: {
+    color: Palette.inkSoft,
+    fontFamily: Fonts.sans,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  retryButton: {
+    minHeight: 44,
+    paddingHorizontal: Spacing.three,
+    justifyContent: 'center',
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.parisBlue,
+  },
+  retryText: { color: Palette.white, fontFamily: Fonts.sans, fontWeight: '700' },
+  gestureHint: {
+    position: 'absolute',
+    bottom: Spacing.three,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.pill,
+    backgroundColor: 'rgba(8, 17, 22, 0.65)',
+    zIndex: 5,
+  },
+  gestureHintText: { color: Palette.white, fontFamily: Fonts.sans, fontSize: 13, fontWeight: '700' },
   divider: {
     position: 'absolute',
     top: 0,

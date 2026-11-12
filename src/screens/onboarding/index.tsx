@@ -42,6 +42,7 @@ import {
 import { useUserLocation } from '@/hooks/use-user-location';
 import { useStations } from '@/providers/stations-provider';
 import { trySetLocationPreference } from '@/services/location-preference';
+import { onboardingImageSource } from '@/services/onboarding-images';
 import {
   completeOnboarding,
   HISTORIC_GRID_COUNT,
@@ -103,19 +104,16 @@ function WelcomeHero({
   return (
     <View>
       <BeforeAfterSlider
-        before={pair.referenceImage}
-        after={pair.recaptureImage}
+        before={onboardingImageSource(pair.referenceImage)}
+        after={onboardingImageSource(pair.recaptureImage)}
         beforeLabel={String(pair.year)}
         afterLabel="2026"
         borderRadius={Radius.large}
         height={height}
         playIntro={playIntro}
         onInteractionChange={onInteractionChange}
+        showGestureHint
       />
-      <View pointerEvents="none" style={styles.swipeHint}>
-        <SymbolView name="hand.draw.fill" size={14} tintColor={Palette.white} />
-        <Text style={styles.swipeHintText}>Glissez pour comparer</Text>
-      </View>
     </View>
   );
 }
@@ -235,7 +233,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const radarImages = publishedSubmissions
     .map((submission) => submission.referenceImage)
     .filter((image): image is ImageSource => Boolean(image))
-    .slice(1, 1 + RADAR_THUMBS.length);
+    .slice(1, 1 + RADAR_THUMBS.length)
+    // Vignettes d'environ 65 pt : 240 px suffisent en @3x.
+    .map((image) => onboardingImageSource(image, 240));
 
   const finish = async () => {
     if (finishing) return;
@@ -511,25 +511,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  swipeHint: {
-    position: 'absolute',
-    alignSelf: 'center',
-    bottom: Spacing.three,
-    minHeight: 32,
-    paddingHorizontal: Spacing.twoHalf,
-    borderRadius: Radius.pill,
-    backgroundColor: 'rgba(8, 17, 22, 0.66)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-  },
-  swipeHintText: {
-    ...Typography.caption,
-    color: Palette.white,
-    fontFamily: Fonts.sans,
-    fontWeight: '700',
-  },
-
   missionProgress: {
     marginTop: Spacing.threeHalf,
     gap: Spacing.two,

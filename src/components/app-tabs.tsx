@@ -13,7 +13,9 @@ export default function AppTabs() {
 
   return (
     <NativeTabs
+      disableTransparentOnScrollEdge
       backgroundColor={Palette.white}
+      shadowColor={Palette.line}
       indicatorColor={Palette.goSoft}
       tintColor={Palette.go}
       disableTransparentOnScrollEdge
