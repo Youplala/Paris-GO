@@ -35,7 +35,8 @@ export default function AppTabs() {
       <NativeTabs.Trigger name="photos">
         <NativeTabs.Trigger.Label>Mes photos</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: 'photo.on.rectangle', selected: 'photo.fill.on.rectangle.fill' }} />
-        <NativeTabs.Trigger.Badge hidden={toSend === 0}>{String(toSend)}</NativeTabs.Trigger.Badge>
+        {/* `hidden` n'est pas respecté sous iOS 18 : la pastille affichait « 0 ». */}
+        {toSend > 0 ? <NativeTabs.Trigger.Badge>{String(toSend)}</NativeTabs.Trigger.Badge> : null}
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="collective">
