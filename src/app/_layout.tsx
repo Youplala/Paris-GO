@@ -80,8 +80,9 @@ export default function RootLayout() {
                 }}>
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="coverage" />
+                <Stack.Screen name="fieldbook" />
                 <Stack.Screen
-                  name="fieldbook"
+                  name="about"
                   options={{ presentation: 'modal', sheetGrabberVisible: true }}
                 />
                 <Stack.Screen name="contributor/[name]" />

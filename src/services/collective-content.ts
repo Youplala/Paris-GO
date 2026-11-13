@@ -12,7 +12,7 @@ export type LocalSuggestion = {
 };
 
 /**
- * Choisit un secteur à explorer à partir des missions ouvertes du relevé actif.
+ * Choisit un lieu à explorer à partir des photos à refaire du relevé actif.
  * Le tri explicite rend la suggestion stable pour un même instantané, sans prétendre
  * qu'une sortie communautaire existe ou qu'un choix est fait côté serveur.
  */
@@ -21,8 +21,8 @@ export function buildLocalSuggestion(missions: readonly LocalMission[]): LocalSu
 
   for (const mission of missions) {
     const arrondissement = mission.arrondissement?.trim();
-    const name = mission.name?.trim();
-    const sector = arrondissement || (name ? `secteur ${name}` : undefined);
+    // Jamais de numéro seul : un lieu sans arrondissement connu ne peut pas être suggéré.
+    const sector = arrondissement;
     if (!sector) continue;
     const group = bySector.get(sector) ?? { stationIds: [], missionCount: 0 };
     group.stationIds.push(mission.id);

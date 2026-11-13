@@ -135,7 +135,7 @@ export function ContributorScreen() {
             <Text style={styles.avatarText}>{initialsFor(displayName)}</Text>
           </View>
           <View style={styles.identityCopy}>
-            <Text accessibilityRole="header" style={styles.name}>{displayName || 'Contributeur'}</Text>
+            <Text accessibilityRole="header" style={styles.name}>{displayName || 'Participant'}</Text>
           </View>
         </View>
         {photos.length === 0 ? (
@@ -191,7 +191,7 @@ export function ContributorScreen() {
           <View style={styles.empty}>
             <SymbolView name="photo.on.rectangle.angled" size={26} tintColor={Palette.copper} />
             <Text style={styles.emptyTitle}>Aucune photo à afficher</Text>
-            <Text style={styles.emptyText}>Revenez aux contributeurs pour choisir un autre profil.</Text>
+            <Text style={styles.emptyText}>Revenez aux participants pour choisir un autre profil.</Text>
           </View>
         }
         renderItem={({ item }) => (

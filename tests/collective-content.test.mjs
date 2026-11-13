@@ -43,13 +43,17 @@ test('départage les secteurs et les points de départ sans dépendre de l’ord
   assert.equal(buildLocalSuggestion([{ id: 'x' }]), undefined);
 });
 
-test('utilise le secteur et le nombre de vues encore ouvertes des carrés 1970', () => {
+test('compte les photos encore à refaire et ne suggère jamais un numéro seul', () => {
   assert.deepEqual(
     buildLocalSuggestion([
-      { id: 'square-12', name: '812', remainingCount: 4 },
-      { id: 'square-42', name: '842', remainingCount: 13 },
+      { id: 'square-12', arrondissement: '75012', remainingCount: 4 },
+      { id: 'square-42', arrondissement: '75011', remainingCount: 13 },
     ]),
-    { stationId: 'square-42', sector: 'secteur 842', missionCount: 13 },
+    { stationId: 'square-42', sector: '75011', missionCount: 13 },
+  );
+  assert.equal(
+    buildLocalSuggestion([{ id: 'square-42', name: '842', remainingCount: 13 }]),
+    undefined,
   );
 });
 

@@ -1,8 +1,16 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { useEffect } from 'react';
 
 import { Palette } from '@/constants/theme';
+import { refreshToSendCount, useToSendCount } from '@/services/my-photos-count';
 
 export default function AppTabs() {
+  const toSend = useToSendCount();
+
+  useEffect(() => {
+    void refreshToSendCount();
+  }, []);
+
   return (
     <NativeTabs
       disableTransparentOnScrollEdge
@@ -24,13 +32,16 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon sf={{ default: 'map', selected: 'map.fill' }} />
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="photos">
+        <NativeTabs.Trigger.Label>Mes photos</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'photo.on.rectangle', selected: 'photo.fill.on.rectangle.fill' }} />
+        {/* `hidden` n'est pas respecté sous iOS 18 : la pastille affichait « 0 ». */}
+        {toSend > 0 ? <NativeTabs.Trigger.Badge>{String(toSend)}</NativeTabs.Trigger.Badge> : null}
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="collective">
         <NativeTabs.Trigger.Label>Communauté</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: 'person.2', selected: 'person.2.fill' }} />
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="about">
-        <NativeTabs.Trigger.Label>À propos</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf={{ default: 'info.circle', selected: 'info.circle.fill' }} />
       </NativeTabs.Trigger>
     </NativeTabs>
   );

@@ -11,7 +11,7 @@ export function arrondissementLabel(code: string | undefined) {
 }
 
 /**
- * Un carré du concours de 1970 n'a pas d'arrondissement propre dans le relevé : « Secteur 237 »
+ * Un lieu du concours de 1970 n'a pas d'arrondissement propre dans le relevé : un numéro seul
  * ne veut rien dire pour l'utilisateur. On reprend celui du repère localisé le plus proche —
  * une reprise publiée ou une photo de 2022 — puisque les arrondissements font plusieurs
  * centaines de mètres de large, largement plus qu'un carré de 250 m.
@@ -30,10 +30,10 @@ export function nearestArrondissement(coordinate: Coordinate, located: LocatedPl
   return nearest;
 }
 
-/** Nom présentable d'un carré : son arrondissement plutôt que son numéro de secteur interne. */
+/** Nom présentable d'un lieu : son arrondissement, jamais son numéro interne (« Paris » à défaut). */
 export function cellPlaceName(
   cell: { center: Coordinate; name: string },
   located: LocatedPlace[],
 ) {
-  return arrondissementLabel(nearestArrondissement(cell.center, located)) ?? `Secteur ${cell.name}`;
+  return arrondissementLabel(nearestArrondissement(cell.center, located)) ?? 'Paris';
 }

@@ -90,7 +90,7 @@ export function OfficialContributionGuide({
                 onPress={continueGuide}
                 style={({ pressed }) => [styles.continueButton, pressed && styles.pressed]}>
                 <Text style={styles.continueLabel}>
-                  {isLast ? 'Voir le formulaire' : 'Suivant'}
+                  {isLast ? 'Compris' : 'Suivant'}
                 </Text>
                 <SymbolView name="arrow.right" size={14} tintColor={Palette.white} />
               </Pressable>

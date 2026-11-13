@@ -185,7 +185,7 @@ test('conserve les états structurés de préparation et la précision de positi
 test('expose des états de rendu explicites pour un carnet vide ou rempli', async () => {
   const empty = getFieldbookViewState([]);
   assert.equal(empty.kind, 'empty');
-  assert.equal(empty.title, 'Aucun brouillon');
+  assert.equal(empty.title, 'Pas encore de photo');
 
   const { store } = setup();
   const capture = await store.save({
@@ -197,4 +197,11 @@ test('expose des états de rendu explicites pour un carnet vide ou rempli', asyn
   const filled = getFieldbookViewState([capture]);
   assert.equal(filled.kind, 'filled');
   assert.equal(filled.count, 1);
+  assert.equal(filled.toSend.length, 1);
+  assert.equal(filled.sent.length, 0);
+
+  const sent = getFieldbookViewState([{ ...capture, submittedAt: '2026-11-11T10:00:00.000Z' }]);
+  assert.equal(sent.kind, 'filled');
+  assert.equal(sent.toSend.length, 0);
+  assert.equal(sent.sent.length, 1);
 });
