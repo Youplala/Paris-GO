@@ -4,94 +4,66 @@ export type CaptureLocation = {
   precision: 'precise' | 'approximate';
 };
 
-export type ReviewStatusIcon =
-  | 'checkmark.circle.fill'
-  | 'exclamationmark.circle.fill'
-  | 'info.circle.fill';
-
-export type ReviewStatusRow = {
-  icon: ReviewStatusIcon;
-  title: string;
-  copy: string;
+export type ReviewNotice = {
+  icon: 'exclamationmark.circle.fill' | 'info.circle.fill';
+  message: string;
 };
 
-type ReviewStatusInput = {
+/**
+ * Seule information de position qui compte pour l'utilisateur : une position absente ou
+ * approximative. Une position précise, ou le mode démo, ne demande aucun commentaire.
+ */
+export function getLocationNotice(input: {
   simulated: boolean;
   location?: CaptureLocation;
-  saved: boolean;
-  savedToLibrary: boolean;
-};
-
-function locationStatus(simulated: boolean, location?: CaptureLocation): ReviewStatusRow {
-  if (simulated) {
-    return {
-      icon: 'info.circle.fill',
-      title: 'Lieu',
-      copy: 'Mode démo : aucune position enregistrée',
-    };
-  }
-  if (!location) {
+}): ReviewNotice | undefined {
+  if (input.simulated) return undefined;
+  if (!input.location) {
     return {
       icon: 'exclamationmark.circle.fill',
-      title: 'Lieu',
-      copy: 'Position non enregistrée pour cette capture',
+      message: 'Position non enregistrée : vérifiez l’adresse dans le formulaire.',
+    };
+  }
+  if (input.location.precision === 'approximate') {
+    return {
+      icon: 'info.circle.fill',
+      message: 'Position approximative : vérifiez l’adresse dans le formulaire.',
+    };
+  }
+  return undefined;
+}
+
+export type SaveStatusInput = {
+  simulated: boolean;
+  saving: boolean;
+  saved: boolean;
+  savedToLibrary: boolean;
+  failed: boolean;
+};
+
+export type SaveStatus = {
+  tone: 'progress' | 'done' | 'error';
+  message: string;
+};
+
+/** Confirmation discrète de l'enregistrement automatique dans Mes photos. */
+export function getSaveStatus(input: SaveStatusInput): SaveStatus | undefined {
+  if (input.failed) {
+    return { tone: 'error', message: 'Votre photo n’a pas pu être enregistrée dans Mes photos.' };
+  }
+  if (input.saving || !input.saved) {
+    return { tone: 'progress', message: 'Enregistrement dans Mes photos…' };
+  }
+  if (input.simulated) {
+    return {
+      tone: 'done',
+      message: 'Aperçu ajouté à Mes photos. Aucune photo créée en mode démo.',
     };
   }
   return {
-    icon: location.precision === 'precise' ? 'checkmark.circle.fill' : 'info.circle.fill',
-    title: 'Lieu',
-    copy:
-      location.precision === 'precise'
-        ? 'Position précise enregistrée avec cette capture'
-        : 'Position approximative enregistrée avec cette capture',
+    tone: 'done',
+    message: input.savedToLibrary
+      ? 'Enregistrée dans Mes photos et dans Photos (Récents).'
+      : 'Enregistrée dans Mes photos. La copie dans Photos n’a pas abouti.',
   };
-}
-
-function fileStatus(simulated: boolean): ReviewStatusRow {
-  return simulated
-    ? {
-        icon: 'info.circle.fill',
-        title: 'Fichier',
-        copy: 'Image de démonstration, aucune photo créée',
-      }
-    : {
-        icon: 'info.circle.fill',
-        title: 'Fichier',
-        copy: 'JPEG recadré et réencodé pour la comparaison',
-      };
-}
-
-function storageStatus({ simulated, saved, savedToLibrary }: ReviewStatusInput): ReviewStatusRow {
-  if (simulated && saved) {
-    return {
-      icon: 'info.circle.fill',
-      title: 'Conservation',
-      copy: 'Aperçu ajouté au carnet, sans fichier photo',
-    };
-  }
-  if (savedToLibrary) {
-    return {
-      icon: 'checkmark.circle.fill',
-      title: 'Conservation',
-      copy: 'Carnet créé et copie ajoutée à Photos',
-    };
-  }
-  if (saved) {
-    return {
-      icon: 'info.circle.fill',
-      title: 'Conservation',
-      copy: 'Photo conservée dans le carnet, mais pas dans Photos',
-    };
-  }
-  return {
-    icon: 'exclamationmark.circle.fill',
-    title: 'Conservation',
-    copy: simulated
-      ? 'Aperçu pas encore ajouté au carnet'
-      : 'Photo pas encore enregistrée dans le carnet ni dans Photos',
-  };
-}
-
-export function getReviewStatusRows(input: ReviewStatusInput): ReviewStatusRow[] {
-  return [locationStatus(input.simulated, input.location), fileStatus(input.simulated), storageStatus(input)];
 }

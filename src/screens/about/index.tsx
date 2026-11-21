@@ -1,10 +1,9 @@
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PROJECT_URL } from '@/constants/legal';
-import { Fonts, Palette, Radius, Spacing, TabBarClearance, Typography } from '@/constants/theme';
+import { Fonts, Palette, Radius, Spacing, Typography } from '@/constants/theme';
 
 const links = [
   { label: 'Le site de Paris GO', detail: 'Découvrir le projet', icon: 'safari' as const, url: 'https://youplala.github.io/reprise/' },
@@ -27,7 +26,7 @@ async function openLink(url: string) {
 
 export function AboutScreen() {
   return (
-    <SafeAreaView edges={['top']} style={styles.screen}>
+    <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text accessibilityRole="header" style={styles.title}>À propos</Text>
         <View style={styles.story}>
@@ -97,14 +96,14 @@ export function AboutScreen() {
           Paris GO n’est ni éditée ni approuvée par ces institutions. Le code est libre ; les photographies conservent leurs droits.
         </Text>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Palette.fog },
-  content: { padding: Spacing.three, paddingBottom: TabBarClearance },
-  title: { ...Typography.display, fontSize: 28, fontFamily: Fonts.display, fontWeight: '900', color: Palette.parisBlue },
+  content: { padding: Spacing.three, paddingTop: Spacing.four, paddingBottom: Spacing.five },
+  title: { ...Typography.display, fontFamily: Fonts.display, fontWeight: '900', color: Palette.parisBlue },
   identityCopy: { flex: 1 },
   story: { marginTop: Spacing.five, marginBottom: Spacing.four },
   author: { flexDirection: 'row', alignItems: 'center', gap: Spacing.twoHalf },

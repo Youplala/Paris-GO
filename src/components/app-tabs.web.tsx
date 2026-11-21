@@ -19,6 +19,11 @@ export default function AppTabs() {
               <Text style={styles.tabLabel}>Carte</Text>
             </Pressable>
           </TabTrigger>
+          <TabTrigger name="photos" href="/photos" asChild>
+            <Pressable style={styles.tabButton}>
+              <Text style={styles.tabLabel}>Mes photos</Text>
+            </Pressable>
+          </TabTrigger>
           <TabTrigger name="collective" href="/collective" asChild>
             <Pressable style={styles.tabButton}>
               <Text style={styles.tabLabel}>Communauté</Text>

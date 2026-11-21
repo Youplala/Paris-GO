@@ -16,12 +16,13 @@ import {
   frame,
   tint,
 } from '@expo/ui/swift-ui/modifiers';
+import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { SFSymbol } from 'sf-symbols-typescript';
 
 import { supportsLiquidGlass } from '@/components/glass-surface';
-import { Fonts, Palette, Shadow, Spacing, Typography } from '@/constants/theme';
+import { ButtonHeight, Fonts, Palette, Shadow, Spacing, Typography } from '@/constants/theme';
 
 type DockAction = {
   label: string;
@@ -93,9 +94,21 @@ function FallbackDock({ primary, secondary }: GlassActionDockProps) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={primary.accessibilityLabel ?? primary.label}
+        accessibilityState={{ disabled: Boolean(primary.disabled) }}
         disabled={primary.disabled}
         onPress={primary.onPress}
-        style={({ pressed }) => [styles.fallbackPrimary, pressed && styles.pressed]}>
+        onPressIn={() => {
+          try {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+          } catch {
+            // Pas de moteur haptique : sans importance.
+          }
+        }}
+        style={({ pressed }) => [
+          styles.fallbackPrimary,
+          primary.disabled && styles.disabled,
+          pressed && styles.pressed,
+        ]}>
         <SymbolView name={primary.systemImage} size={20} tintColor={Palette.white} />
         <Text style={styles.fallbackPrimaryText}>{primary.label}</Text>
       </Pressable>
@@ -103,6 +116,10 @@ function FallbackDock({ primary, secondary }: GlassActionDockProps) {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={secondary.accessibilityLabel ?? secondary.label}
+          accessibilityState={{
+            disabled: Boolean(secondary.disabled || secondary.loading),
+            busy: Boolean(secondary.loading),
+          }}
           disabled={secondary.disabled || secondary.loading}
           onPress={secondary.onPress}
           style={({ pressed }) => [styles.fallbackSecondary, pressed && styles.pressed]}>
@@ -124,6 +141,8 @@ const floatingShadow = {
   elevation: 8,
 } as const;
 
+const DOCK_HEIGHT = ButtonHeight.regular + 6;
+
 const styles = StyleSheet.create({
   host: {
     width: '100%',
@@ -135,10 +154,12 @@ const styles = StyleSheet.create({
   },
   fallbackPrimary: {
     flex: 1,
-    minHeight: 58,
+    minHeight: DOCK_HEIGHT,
     paddingHorizontal: Spacing.three,
-    borderRadius: 29,
+    borderRadius: DOCK_HEIGHT / 2,
     backgroundColor: Palette.go,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -148,15 +169,14 @@ const styles = StyleSheet.create({
   },
   fallbackPrimaryText: {
     ...Typography.body,
-    fontSize: 17,
     color: Palette.white,
     fontFamily: Fonts.sans,
     fontWeight: '700',
   },
   fallbackSecondary: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: DOCK_HEIGHT,
+    height: DOCK_HEIGHT,
+    borderRadius: DOCK_HEIGHT / 2,
     backgroundColor: Palette.white,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Palette.line,
@@ -165,8 +185,9 @@ const styles = StyleSheet.create({
     ...Shadow.card,
     ...floatingShadow,
   },
+  disabled: { opacity: 0.45 },
   pressed: {
-    opacity: 0.88,
+    opacity: 0.9,
     transform: [{ scale: 0.97 }],
   },
 });

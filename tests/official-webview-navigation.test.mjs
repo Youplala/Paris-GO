@@ -39,7 +39,7 @@ test('les nouvelles fenêtres sont interceptées sans aucune externalisation', (
 test('le guide de contribution peut être rouvert depuis le formulaire', () => {
   assert.match(screenSource, /<OfficialContributionGuide/);
   assert.match(screenSource, /setGuideVisible\(true\)/);
-  assert.match(screenSource, /accessibilityLabel="Comprendre le dépôt"/);
+  assert.match(screenSource, /accessibilityLabel="Aide pour envoyer ma photo"/);
 });
 
 test('aucune origine n’est confiée au système : toute navigation passe par le garde-fou', () => {

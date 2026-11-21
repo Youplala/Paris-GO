@@ -24,7 +24,7 @@ const SEINE: [number, number][] = [
 
 type ParisGridMapProps = {
   cells: CoverageCell[];
-  /** Nombre de carrés du concours de 1970, affiché dans l'étiquette. */
+  /** Nombre de lieux du concours de 1970, affiché dans l'étiquette. */
   squareCount: number;
   height?: number;
 };
@@ -78,14 +78,14 @@ export function ParisGridMap({ cells, squareCount, height = 210 }: ParisGridMapP
     <View
       accessible
       accessibilityRole="image"
-      accessibilityLabel={`Paris découpé en ${squareCount} carrés de 250 mètres, dont ${opened} où une photo a déjà été refaite.`}
+      accessibilityLabel={`Paris en ${squareCount} lieux de 250 mètres, dont ${opened} où une photo a déjà été refaite.`}
       style={[styles.frame, { height }]}>
       {illustration ? (
         <Image source={{ uri: illustration }} style={styles.image} contentFit="contain" />
       ) : null}
       <View style={styles.titleTag}>
         <Text style={styles.titleText}>
-          Paris · {squareCount.toLocaleString('fr-FR')} carrés
+          Paris · {squareCount.toLocaleString('fr-FR')} lieux
         </Text>
       </View>
       <View style={styles.scaleTag}>

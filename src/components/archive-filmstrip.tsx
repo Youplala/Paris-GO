@@ -49,7 +49,7 @@ export function ArchiveFilmstrip({ images, selectedIndex, onSelect, recaptureCou
           {recaptureCounts ? (
             <View style={[styles.status, recaptureCounts[index] > 0 && styles.statusDone]}>
               {recaptureCounts[index] > 0 ? <SymbolView name="checkmark.circle.fill" size={12} tintColor={Palette.brass} /> : null}
-              <Text style={styles.statusText}>{recaptureCounts[index] > 0 ? 'Refaite' : 'À retrouver'}</Text>
+              <Text style={styles.statusText}>{recaptureCounts[index] > 0 ? 'Refaite' : 'À refaire'}</Text>
             </View>
           ) : null}
           <View style={styles.number}>
