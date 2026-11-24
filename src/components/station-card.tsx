@@ -35,17 +35,17 @@ export function StationCard({
   const remainingCount = station.remainingCount ?? photoCount;
   const photoLabel =
     remainingCount === 0
-      ? 'Toutes les photos ont été refaites'
-      : `${remainingCount} ${remainingCount > 1 ? 'photos' : 'photo'} à retrouver`;
+      ? 'Lieu terminé'
+      : `${remainingCount} ${remainingCount > 1 ? 'photos' : 'photo'} à refaire`;
   const distanceLabel =
     distance !== undefined
       ? `${station.approximate ? 'À environ ' : 'À '}${formatDistance(distance)}`
       : station.approximate
-        ? 'Zone de 250 m'
-        : 'Point précis';
-  // Une carte de secteur nomme un arrondissement, jamais son numéro interne : « Secteur 794 » ne
+        ? 'Zone approximative'
+        : 'Position précise';
+  // Une carte de lieu nomme un arrondissement, jamais son numéro interne : un numéro seul ne
   // situe rien, pour l'œil comme pour un lecteur d'écran.
-  const archiveTitle = arrondissementLabel(station.arrondissement) ?? `Secteur ${station.name}`;
+  const archiveTitle = arrondissementLabel(station.arrondissement) ?? 'Paris';
 
   return (
     <Link href={{ pathname: '/station/[id]', params: { id: station.id } }} asChild>

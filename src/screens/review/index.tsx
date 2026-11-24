@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import type { ImageSource } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BeforeAfterSlider } from '@/components/before-after-slider';
+import { IconButton } from '@/components/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { SIMULATED_CAMERA_IMAGE } from '@/constants/demo';
 import { Fonts, HitSize, Palette, Spacing, Typography } from '@/constants/theme';
@@ -25,7 +26,7 @@ import {
   validatedHistoricalReferenceUri,
 } from '@/services/camera-reference';
 import { saveCapture } from '@/services/fieldbook';
-import { getReviewStatusRows, type CaptureLocation } from '@/services/review-status';
+import { getLocationNotice, getSaveStatus, type CaptureLocation } from '@/services/review-status';
 
 export function ReviewScreen() {
   const router = useRouter();
@@ -60,7 +61,7 @@ export function ReviewScreen() {
     referencePreparation?: string;
   }>();
   const { detail } = useStationDetail(id);
-  const [saved, setSaved] = useState(resumed === '1');
+  const [saved, setSaved] = useState(resumed === '1' || Boolean(captureId));
   const [inLibrary, setInLibrary] = useState(currentSaved === '1');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string>();
@@ -111,14 +112,16 @@ export function ReviewScreen() {
     (locationPrecision === 'precise' || locationPrecision === 'approximate')
       ? { latitude: latitudeValue, longitude: longitudeValue, precision: locationPrecision }
       : undefined;
-  const reviewStatusRows = getReviewStatusRows({
+  const locationNotice = getLocationNotice({ simulated: isSimulated, location: captureLocation });
+  const saveStatus = getSaveStatus({
     simulated: isSimulated,
-    location: captureLocation,
+    saving,
     saved,
     savedToLibrary: inLibrary,
+    failed: Boolean(saveError),
   });
 
-  const save = async () => {
+  const save = useCallback(async () => {
     setSaving(true);
     setSaveError(undefined);
     try {
@@ -129,7 +132,6 @@ export function ReviewScreen() {
         frameIndex,
         imageUri: uri || undefined,
         simulated: isSimulated,
-
         coordinate: captureLocation
           ? { latitude: captureLocation.latitude, longitude: captureLocation.longitude }
           : undefined,
@@ -142,11 +144,23 @@ export function ReviewScreen() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSaved(true);
     } catch {
-      setSaveError('La photo n’a pas pu être ajoutée au carnet. Réessayez.');
+      setSaveError('SAVE_FAILED');
     } finally {
       setSaving(false);
     }
-  };
+    // Les valeurs de la photo sont figées à l'arrivée : seule la fiche du lieu peut se charger après.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail?.address, detail?.name, frameIndex, id, isSimulated, uri, latitudeValue, longitudeValue, locationPrecision]);
+
+  // La photo ne doit jamais se perdre : une nouvelle prise s'enregistre dès l'arrivée, une seule
+  // fois (le garde-fou résiste aux rendus répétés). Une photo reprise depuis Mes photos l'est déjà.
+  const autoSaveStarted = useRef(false);
+  const alreadySaved = resumed === '1' || Boolean(captureId);
+  useEffect(() => {
+    if (alreadySaved || autoSaveStarted.current) return;
+    autoSaveStarted.current = true;
+    void save();
+  }, [alreadySaved, save]);
 
   const openObservatoire = () => {
     const captureUri = savedCaptureUri ?? uri ?? '';
@@ -178,26 +192,20 @@ export function ReviewScreen() {
 
   const share = () =>
     Share.share({
-      message: `J’ai retrouvé un point de vue de ${detail?.year ?? 1970} à Paris avec Paris GO.`,
+      message: `J’ai refait une photo de ${detail?.year ?? 1970} à Paris avec Paris GO.`,
       url: savedCaptureUri ?? uri,
     });
 
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.header}>
-        <Pressable
-          accessibilityLabel="Fermer"
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
-          <SymbolView name="xmark" size={17} tintColor={Palette.ink} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Vérifier la photo</Text>
-        <Pressable
+        <IconButton icon="xmark" accessibilityLabel="Fermer" onPress={() => router.back()} />
+        <Text style={styles.headerTitle}>Votre photo</Text>
+        <IconButton
+          icon="square.and.arrow.up"
           accessibilityLabel="Partager"
-          onPress={share}
-          style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
-          <SymbolView name="square.and.arrow.up" size={17} tintColor={Palette.ink} />
-        </Pressable>
+          onPress={() => void share()}
+        />
       </SafeAreaView>
 
       <ScrollView
@@ -218,8 +226,44 @@ export function ReviewScreen() {
         ) : null}
 
         <View style={styles.body}>
-          <Text style={styles.kicker}>{isSimulated ? 'APERÇU SIMULATEUR' : 'PHOTO TERMINÉE'}</Text>
           <Text style={styles.title}>Le même lieu,{'\n'}deux époques.</Text>
+
+          {saveStatus ? (
+            <View
+              accessibilityLiveRegion="polite"
+              style={styles.statusRow}>
+              <SymbolView
+                name={
+                  saveStatus.tone === 'done'
+                    ? 'checkmark.circle.fill'
+                    : saveStatus.tone === 'error'
+                      ? 'exclamationmark.circle.fill'
+                      : 'clock'
+                }
+                size={16}
+                tintColor={saveStatus.tone === 'done' ? Palette.lichen : Palette.inkSoft}
+              />
+              <Text style={styles.statusText}>{saveStatus.message}</Text>
+              {saveStatus.tone === 'error' ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Réessayer l’enregistrement"
+                  disabled={saving}
+                  hitSlop={8}
+                  onPress={() => void save()}
+                  style={({ pressed }) => [styles.retry, pressed && styles.pressed]}>
+                  <Text style={styles.retryText}>Réessayer</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
+
+          {locationNotice ? (
+            <View style={styles.statusRow}>
+              <SymbolView name={locationNotice.icon} size={16} tintColor={Palette.inkSoft} />
+              <Text style={styles.statusText}>{locationNotice.message}</Text>
+            </View>
+          ) : null}
 
           {isSimulated ? (
             <Text style={styles.noteText}>
@@ -228,68 +272,21 @@ export function ReviewScreen() {
             </Text>
           ) : null}
 
-          <Text style={styles.noteText}>
-            {saved && inLibrary
-              ? 'Votre photo est enregistrée dans Photos (Récents). Le formulaire officiel peut maintenant être préparé sans ressaisir la date ni la position.'
-              : 'Paris GO prépare le formulaire officiel, les deux images et les informations du point de vue. Vous gardez la main sur le règlement et l’envoi final.'}
-          </Text>
-
-        <View style={styles.checklist}>
-          <Text style={styles.checklistKicker}>CONTRÔLE AVANT DÉPÔT</Text>
-          {reviewStatusRows.map(({ icon, title, copy }) => (
-            <View key={title} style={styles.checkRow}>
-              <SymbolView
-                name={icon as 'checkmark.circle.fill'}
-                size={21}
-                tintColor={
-                  icon.startsWith('check')
-                    ? Palette.lichen
-                    : icon.startsWith('info')
-                      ? Palette.parisBlue
-                      : Palette.copper
-                }
-              />
-              <View style={styles.checkCopy}>
-                <Text style={styles.checkTitle}>{title}</Text>
-                <Text style={styles.checkText}>{copy}</Text>
-              </View>
-            </View>
-            ))}
-          </View>
-
           <PrimaryButton
-            label={saved ? (inLibrary ? 'Enregistrée dans vos photos' : 'Ajoutée au carnet') : 'Enregistrer ma photo'}
-            icon={saved ? 'checkmark' : 'bookmark'}
+            label="Envoyer à l’Observatoire"
+            icon="paperplane.fill"
             loading={saving}
-            disabled={saved}
-            onPress={save}
-          />
-          {/* Le bouton seul ne suffisait pas à faire comprendre que l'enregistrement avait eu lieu :
-              cette ligne confirme l'action à l'endroit même où l'utilisateur vient de taper. */}
-          {saved ? (
-            <View style={styles.saveConfirmation}>
-              <SymbolView name="checkmark.circle.fill" size={16} tintColor={Palette.lichen} />
-              <Text style={styles.saveConfirmationText}>
-                {isSimulated
-                  ? 'Aperçu ajouté au carnet. Aucune photo créée en mode démo.'
-                  : inLibrary
-                    ? 'Photo enregistrée dans Photos et dans le carnet.'
-                    : 'Photo conservée dans le carnet uniquement. La copie dans Photos n’a pas abouti.'}
-              </Text>
-            </View>
-          ) : null}
-          {saveError ? <Text style={styles.saveError}>{saveError}</Text> : null}
-          <PrimaryButton
-            label="Préparer le dépôt officiel"
-            icon="lock.shield"
-            variant="outline"
             onPress={openObservatoire}
-            style={styles.secondaryButton}
+            style={styles.cta}
           />
-          <Pressable onPress={() => router.replace('/collective')} style={styles.collectiveLink}>
-            <Text style={styles.collectiveText}>Voir les photos de la communauté</Text>
-            <SymbolView name="person.2.fill" size={16} tintColor={Palette.parisBlue} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityHint="Votre photo reste dans Mes photos"
+            onPress={() => router.back()}
+            style={({ pressed }) => [styles.later, pressed && styles.pressed]}>
+            <Text style={styles.laterText}>Plus tard</Text>
           </Pressable>
+          <Text style={styles.laterHint}>Vous la retrouverez dans Mes photos.</Text>
         </View>
       </ScrollView>
     </View>
@@ -307,16 +304,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Palette.line,
-  },
-  closeButton: {
-    width: HitSize,
-    height: HitSize,
-    borderRadius: HitSize / 2,
-    backgroundColor: Palette.white,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   headerTitle: {
     ...Typography.body,
@@ -332,92 +319,61 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.four,
   },
-  kicker: {
-    ...Typography.caption,
-    color: Palette.copper,
-    fontFamily: Fonts.display,
-    fontWeight: '900',
-    letterSpacing: 0.6,
-  },
   // Titre de l'écran : un seul niveau « display » par vue, jamais combiné à « title ».
   title: {
     ...Typography.display,
-    marginTop: Spacing.two,
     color: Palette.ink,
     fontFamily: Fonts.display,
   },
+  statusRow: {
+    marginTop: Spacing.three,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  statusText: {
+    ...Typography.caption,
+    flex: 1,
+    color: Palette.inkSoft,
+    fontFamily: Fonts.sans,
+  },
+  retry: {
+    minHeight: HitSize,
+    justifyContent: 'center',
+  },
+  retryText: {
+    ...Typography.caption,
+    color: Palette.ink,
+    fontFamily: Fonts.sans,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
   noteText: {
-    ...Typography.body,
+    ...Typography.caption,
     marginTop: Spacing.three,
     color: Palette.inkSoft,
     fontFamily: Fonts.sans,
   },
-  checklist: {
+  cta: {
     marginTop: Spacing.four,
-    marginBottom: Spacing.four,
-    gap: Spacing.twoHalf,
   },
-  checklistKicker: {
-    ...Typography.caption,
-    color: Palette.inkSoft,
-    fontFamily: Fonts.display,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+  later: {
+    minHeight: HitSize,
+    marginTop: Spacing.two,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  checkRow: {
-    flexDirection: 'row',
-    gap: Spacing.three,
-  },
-  checkCopy: {
-    flex: 1,
-  },
-  checkTitle: {
+  laterText: {
     ...Typography.body,
     color: Palette.ink,
     fontFamily: Fonts.sans,
     fontWeight: '700',
   },
-  checkText: {
-    ...Typography.body,
-    marginTop: Spacing.half,
+  laterHint: {
+    ...Typography.caption,
+    textAlign: 'center',
     color: Palette.inkSoft,
     fontFamily: Fonts.sans,
-  },
-  secondaryButton: {
-    marginTop: Spacing.two,
-  },
-  saveConfirmation: {
-    marginTop: Spacing.two,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.one,
-  },
-  saveConfirmationText: {
-    ...Typography.body,
-    color: Palette.lichen,
-    fontFamily: Fonts.sans,
-    fontWeight: '700',
-  },
-  saveError: {
-    ...Typography.body,
-    marginTop: Spacing.two,
-    color: Palette.copper,
-    fontFamily: Fonts.sans,
-  },
-  collectiveLink: {
-    minHeight: 50,
-    marginTop: Spacing.four,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
-  },
-  collectiveText: {
-    ...Typography.body,
-    color: Palette.parisBlue,
-    fontFamily: Fonts.sans,
-    fontWeight: '700',
   },
   pressed: {
     opacity: 0.8,

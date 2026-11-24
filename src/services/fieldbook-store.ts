@@ -23,11 +23,16 @@ export type SavedCapture = {
   locationPrecision?: 'precise' | 'approximate';
   preparation: CapturePreparation;
   createdAt: string;
+  /**
+   * Date à laquelle le formulaire officiel a confirmé l'envoi. Absente tant que la photo reste
+   * « à envoyer ». Paris GO ne sait pas si l'Observatoire l'a publiée : seulement qu'elle est partie.
+   */
+  submittedAt?: string;
 };
 
 export type NewCapture = Omit<
   SavedCapture,
-  'schemaVersion' | 'id' | 'createdAt' | 'assetId' | 'preparation'
+  'schemaVersion' | 'id' | 'createdAt' | 'assetId' | 'preparation' | 'submittedAt'
 > & {
   preparation?: CapturePreparation;
 };
@@ -110,6 +115,10 @@ function normalize(raw: unknown): SavedCapture | undefined {
       reference: normalizePreparation(preparation?.reference),
     },
     createdAt: capture.createdAt,
+    submittedAt:
+      typeof capture.submittedAt === 'string' && !Number.isNaN(Date.parse(capture.submittedAt))
+        ? capture.submittedAt
+        : undefined,
   };
 }
 
@@ -215,7 +224,7 @@ export function createFieldbookStore({ storage, files, now = () => new Date() }:
 
   const update = async (
     id: string,
-    patch: Partial<Pick<SavedCapture, 'assetId' | 'preparation'>>,
+    patch: Partial<Pick<SavedCapture, 'assetId' | 'preparation' | 'submittedAt'>>,
   ): Promise<SavedCapture | undefined> => {
     const captures = await list();
     const index = captures.findIndex((capture) => capture.id === id);
@@ -253,5 +262,7 @@ export function createFieldbookStore({ storage, files, now = () => new Date() }:
       capture.imageUri === uri && files.isManaged(uri));
   };
 
-  return { list, remove, save, update, authorizeCapture };
+  const markSubmitted = (id: string) => update(id, { submittedAt: now().toISOString() });
+
+  return { list, remove, save, update, markSubmitted, authorizeCapture };
 }

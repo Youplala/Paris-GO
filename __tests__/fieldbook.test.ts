@@ -3,7 +3,12 @@ import { File, Paths } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { authorizeOfficialCapture, isOfficialCaptureAuthorized } from '@/services/official-capture-authority';
 
-import { getSavedCaptures, isSavedCaptureAuthorized, saveCapture } from '@/services/fieldbook';
+import {
+  getSavedCaptures,
+  isSavedCaptureAuthorized,
+  markCaptureSubmitted,
+  saveCapture,
+} from '@/services/fieldbook';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
@@ -123,5 +128,15 @@ describe('fieldbook', () => {
     await expect(isSavedCaptureAuthorized(capture.id, 'station-real', capture.imageUri!)).resolves.toBe(true);
     await expect(isSavedCaptureAuthorized(capture.id, 'station-other', capture.imageUri!)).resolves.toBe(false);
     await expect(isSavedCaptureAuthorized(capture.id, 'station-real', photo.uri)).resolves.toBe(false);
+  });
+  it('marque une photo comme envoyée seulement sur demande explicite', async () => {
+    const outcome = await saveCapture({ stationId: 'station-sent', frameIndex: 0, simulated: true });
+    expect(outcome.capture.submittedAt).toBeUndefined();
+    jest.setSystemTime(new Date(5678));
+    const sent = await markCaptureSubmitted(outcome.capture.id);
+    expect(sent?.submittedAt).toBe(new Date(5678).toISOString());
+    const [stored] = await getSavedCaptures();
+    expect(stored.submittedAt).toBe(new Date(5678).toISOString());
+    expect(await markCaptureSubmitted('inconnue')).toBeUndefined();
   });
 });

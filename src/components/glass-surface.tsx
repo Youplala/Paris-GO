@@ -39,7 +39,15 @@ export function GlassSurface({ variant = 'regular', style, tintColor }: GlassSur
     return (
       <View
         pointerEvents="none"
-        style={[StyleSheet.absoluteFill, { backgroundColor: theme.glassFallback }, style]}
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            backgroundColor: theme.glassFallback,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: theme.scheme === 'dark' ? 'rgba(255, 255, 255, 0.14)' : 'rgba(13, 42, 60, 0.10)',
+          },
+          style,
+        ]}
       />
     );
   }
