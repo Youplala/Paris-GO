@@ -29,10 +29,11 @@ Ce que Paris GO utilise :
    adresse e-mail n'est conservée. L'attribution est affichée conformément à l'article 10.3 du
    règlement de participation.
 2. L'export GeoJSON de la grille du concours de 1970 publié par le CAUE.
-3. Le formulaire officiel https://observatoire-photo.paris/elements/add, affiché dans une vue web
-   intégrée. Paris GO préremplit uniquement des champs publics vides (date, lieu, coordonnées, modèle
+3. Le formulaire officiel https://opppp.cartes.xyz/elements/add, affiché dans une vue web
+   intégrée. Paris GO préremplit des champs publics vides (date, lieu, coordonnées, modèle
    d'appareil) et prépare les deux images attendues par votre mode d'emploi : la photographie
-   actuelle de l'utilisateur et une copie de la photographie d'archive de la BHVP correspondante. Elle ne renseigne jamais l'identité, ne coche
+   actuelle de l'utilisateur et une copie de la photographie d'archive de la BHVP correspondante.
+   Sur choix explicite de mémorisation locale, elle peut aussi préremplir l’identité. Elle ne coche
    aucun consentement et ne déclenche jamais l'envoi : le dépôt reste un acte conscient de
    l'utilisateur, sur votre site, selon vos conditions.
 4. Le nom « Observatoire photo participatif des paysages parisiens » et la mention « animé par le
@@ -48,7 +49,8 @@ Pourriez-vous me confirmer par retour que :
 
 - vous autorisez explicitement Paris GO à afficher les données publiques de l'Observatoire (stations,
   reprises publiées, noms des contributeurs), avec attribution et lien vers la source ;
-- vous autorisez l'intégration du formulaire officiel avec préremplissage des seuls champs publics,
+- vous autorisez l’intégration du formulaire officiel avec préremplissage des champs publics
+  et, sur choix explicite de l’utilisateur, de son identité mémorisée localement,
   y compris la préparation de la copie de la photographie d'archive que votre formulaire demande ;
 - la formulation des crédits vous convient, ou m'indiquer celle que vous souhaitez.
 
@@ -56,8 +58,8 @@ Je me tiens à votre disposition pour tout ajustement, et je serais heureux de v
 l'application. Le code, la politique de confidentialité et la page des sources sont publics :
 
 - https://github.com/Youplala/reprise
-- https://youplala.github.io/reprise/sources/
-- https://youplala.github.io/reprise/confidentialite/
+- https://youplala.github.io/Paris-GO/sources/
+- https://youplala.github.io/Paris-GO/confidentialite/
 
 Merci beaucoup pour cette campagne, et pour votre temps.
 

@@ -14,10 +14,10 @@ ou les flux réseau changent.
 - Catégorie principale suggérée : Photo et vidéo
 - Catégorie secondaire suggérée : Voyages
 - Politique de confidentialité :
-  `https://youplala.github.io/reprise/confidentialite/`
-- Assistance : `https://youplala.github.io/reprise/support/`
-- Marketing / projet : `https://youplala.github.io/reprise/`
-- Conditions d’utilisation : `https://youplala.github.io/reprise/conditions/`
+  `https://youplala.github.io/Paris-GO/confidentialite/`
+- Assistance : `https://youplala.github.io/Paris-GO/support/`
+- Marketing / projet : `https://youplala.github.io/Paris-GO/`
+- Conditions d’utilisation : `https://youplala.github.io/Paris-GO/conditions/`
 
 ## App Store — français
 
@@ -48,8 +48,8 @@ les reprises déjà publiées par l’Observatoire photo participatif des paysag
 
 RETROUVEZ LE CADRAGE
 
-Affichez la photographie historique, rejoignez le point de vue et utilisez la superposition ainsi
-que les repères d’inclinaison pour préparer une reprise fidèle. Aucune comparaison automatique de
+Affichez la photographie historique, rejoignez le point de vue et utilisez la superposition
+à opacité réglable pour préparer une reprise fidèle. Aucune comparaison automatique de
 visages ou d’images n’est effectuée.
 
 GARDEZ LE CONTRÔLE
@@ -71,14 +71,15 @@ l’Observatoire photo participatif des paysages parisiens, animée par le CAUE 
 Le dossier complet de réponse à App Review (vidéo, questions 2 à 7, mails d’autorisation) est dans
 [`docs/app-review/`](app-review/README.md).
 
-L’application ne nécessite aucun compte. La position, la caméra et l’orientation sont demandées
-uniquement au moment où l’utilisateur déclenche les fonctions correspondantes. Les photos sont
-enregistrées en accès ajout uniquement.
+L’application ne nécessite aucun compte. Les autorisations de localisation et de caméra sont
+demandées uniquement au moment où l’utilisateur déclenche les fonctions correspondantes.
+Les photos sont enregistrées en accès ajout uniquement.
 
 L’écran « Dépôt officiel » contient une WebView vers
-`https://observatoire-photo.paris/elements/add`. Paris GO préremplit seulement certains champs
+`https://opppp.cartes.xyz/elements/add`. Paris GO préremplit certains champs
 publics vides et prépare deux fichiers, archive puis photo actuelle. Le commentaire reste vide.
-Paris GO ne renseigne jamais l’identité, ne coche aucune case et ne soumet jamais le formulaire.
+L’identité n’est préremplie que sur choix explicite de mémorisation sur l’appareil.
+Paris GO ne coche aucun consentement et ne soumet jamais le formulaire.
 Les navigations non autorisées et les fenêtres secondaires sont bloquées dans l’application.
 
 ## Google Play — français
