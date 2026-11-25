@@ -113,11 +113,6 @@ function remainingLabel(count: number) {
     : `${plural(count, 'photo')} ${count > 1 ? 'restent' : 'reste'} à retrouver`;
 }
 
-function selectionTitle(cell: CoverageCell, filter: MapFilter) {
-  if (filter === 'to-reprise') return remainingLabel(cellRemainingCount(cell));
-  return `${plural(cell.published1970, 'photo')} ${cell.published1970 > 1 ? 'refaites' : 'refaite'}`;
-}
-
 function emptySearchTitle(filter: MapFilter) {
   return filter === 'to-reprise' ? 'Aucune photo à retrouver ici' : 'Aucune photo refaite ici';
 }
@@ -329,7 +324,6 @@ export function MapScreen() {
   const [heading, setHeading] = useState(0);
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
   const [selected, setSelected] = useState<StationSummary | undefined>();
-  const [selectedCell, setSelectedCell] = useState<CoverageCell>();
   const [focusedCell, setFocusedCell] = useState<CoverageCell>();
   const [userMovedMap, setUserMovedMap] = useState(false);
   // Loin de Paris, la carte reste sur Paris — toutes les photos y sont — et un bandeau dit
@@ -512,7 +506,7 @@ export function MapScreen() {
   const hasSelectedExactStation =
     Boolean(activeSelected) && !activeSelected?.approximate &&
     visibleStations.some((station) => station.id === activeSelected?.id);
-  const hasPreview = Boolean(selectedCell || focusedCell || hasNoFilteredSearchResults ||
+  const hasPreview = Boolean(focusedCell || hasNoFilteredSearchResults ||
     (showIndividualPoints && hasSelectedExactStation));
 
   const topOffset = Math.max(insets.top, 52) + Spacing.one;
@@ -574,7 +568,6 @@ export function MapScreen() {
       setMapTarget({ ...PARIS_INITIAL_REGION });
       return;
     }
-    setSelectedCell(undefined);
     setFocusedCell(undefined);
     setBrowseOrigin(nextCoordinate);
     const nearestStation = statusFilteredStations.reduce<StationSummary | undefined>(
@@ -598,7 +591,6 @@ export function MapScreen() {
 
   const handleReturnToParis = useCallback(() => {
     setSelected(undefined);
-    setSelectedCell(undefined);
     setFocusedCell(undefined);
     setQuery('');
     setBrowseOrigin({
@@ -612,7 +604,6 @@ export function MapScreen() {
   const handleSelect = useCallback((station: StationSummary) => {
     setPreviewCollapsed(false);
     Keyboard.dismiss();
-    setSelectedCell(undefined);
     setFocusedCell(undefined);
     setSelected(station);
     void Haptics.selectionAsync();
@@ -622,7 +613,6 @@ export function MapScreen() {
     (station: StationSummary) => {
       const stationCell = grid.find((cell) => stationIsInCell(station, cell));
       setSelected(station);
-      setSelectedCell(undefined);
       setFocusedCell(station.approximate ? stationCell : undefined);
       setQuery(station.name);
       setSearchFocused(false);
@@ -676,16 +666,11 @@ export function MapScreen() {
     stations,
   ]);
 
-  const handleGridSelect = (cell: CoverageCell) => {
+  // Une zone s'ouvre directement : cadrage sur la carte et aperçus dans le même geste.
+  const handleGridSelect = useCallback((cell: CoverageCell) => {
     if (!cellHasFilter(cell, filter)) return;
-    setPreviewCollapsed(false);
     Keyboard.dismiss();
-    setFocusedCell(undefined);
-    setSelectedCell(cell);
-    void Haptics.selectionAsync();
-  };
-
-  const openGridCell = useCallback((cell: CoverageCell) => {
+    setSearchFocused(false);
     const exactStations = filteredStations.filter(
       (station) => !station.approximate && stationIsInCell(station, cell),
     );
@@ -694,9 +679,7 @@ export function MapScreen() {
       exactStations.find(
         (station) => preferredStatus && mappingStatus(station) === preferredStatus,
       ) ?? exactStations[0];
-    if (nextSelected) setSelected(nextSelected);
-
-    setSelectedCell(undefined);
+    setSelected(nextSelected);
     setFocusedCell(cell);
     setBrowseOrigin(cell.center);
 
@@ -712,6 +695,7 @@ export function MapScreen() {
       longitudeDelta,
       avoidBottomOverlay: true,
     });
+    void Haptics.selectionAsync();
   }, [filter, filteredStations, setMapTarget]);
 
   const handleResetNorth = useCallback(() => {
@@ -743,7 +727,6 @@ export function MapScreen() {
     (index: number) => {
       const station = visibleStations[index];
       if (!station || station.id === activeSelected?.id) return;
-      setSelectedCell(undefined);
       setSelected(station);
       setMapTarget({ ...station.coordinate });
       void Haptics.selectionAsync();
@@ -773,24 +756,16 @@ export function MapScreen() {
                 coordinates={cell.coordinates}
                 fillColor={scaleAlpha(cellFill(cell, filter), 1 - pointsBlend)}
                 strokeColor={
-                  selectedCell?.id === cell.id
+                  focusedCell?.id === cell.id
                     ? Palette.white
                     : 'rgba(22, 63, 91, 0.16)'
                 }
-                strokeWidth={selectedCell?.id === cell.id ? 2.4 : 0.8}
+                strokeWidth={focusedCell?.id === cell.id ? 2.4 : 0.8}
                 tappable={cellHasFilter(cell, filter)}
                 onPress={() => handleGridSelect(cell)}
               />
             ))
           : null}
-
-        {!showIndividualPoints && selectedCell ? (
-          <Marker coordinate={selectedCell.center} tracksViewChanges={false}>
-            <View style={styles.gridMarker}>
-              <Text style={styles.gridMarkerText}>{selectedCell.percentage.toLocaleString('fr-FR')} %</Text>
-            </View>
-          </Marker>
-        ) : null}
 
         {showIndividualPoints && focusedCell ? (
           <Polygon
@@ -808,11 +783,8 @@ export function MapScreen() {
                 coordinate={cell.center}
                 tracksViewChanges={false}
                 zIndex={6}
-                onPress={() => {
-                  setFocusedCell(undefined);
-                  setSelectedCell(cell);
-                  void Haptics.selectionAsync();
-                }}>
+                accessibilityLabel={`Voir les ${cell.remaining1970} photos à retrouver, ${cellPlaceName(cell, locatedStations)}`}
+                onPress={() => handleGridSelect(cell)}>
                 <View style={styles.unlocatedCluster}>
                   <Text style={styles.unlocatedCountText}>{cell.remaining1970}</Text>
                 </View>
@@ -880,7 +852,6 @@ export function MapScreen() {
               onChangeText={(nextQuery) => {
                 setQuery(nextQuery);
                 setSelected(undefined);
-                setSelectedCell(undefined);
                 setFocusedCell(undefined);
               }}
               onFocus={() => setSearchFocused(true)}
@@ -1058,10 +1029,9 @@ export function MapScreen() {
                     const searchedCell = searchedArchive
                       ? grid.find((cell) => stationIsInCell(searchedArchive, cell))
                       : undefined;
-                    const contextualCell = focusedCell ?? selectedCell ?? searchedCell;
+                    const contextualCell = focusedCell ?? searchedCell;
 
                     setFilter(option.value);
-                    setSelectedCell(undefined);
                     setFocusedCell(
                       contextualCell && cellHasFilter(contextualCell, option.value)
                         ? contextualCell
@@ -1132,7 +1102,7 @@ export function MapScreen() {
                 : isExploringArchiveCell ||
               (showIndividualPoints && hasSelectedExactStation)
                 ? previewCardHeight + 126
-                : selectedCell || focusedCell || hasNoFilteredSearchResults
+                : focusedCell || hasNoFilteredSearchResults
                 ? 276
                 : 126,
           },
@@ -1175,31 +1145,7 @@ export function MapScreen() {
       {!searchFocused && hasPreview ? (
         <View style={styles.bottomOverlay} pointerEvents="box-none">
           <MapPreviewSheet collapsed={previewCollapsed} onCollapsedChange={setPreviewCollapsed}>
-          {selectedCell ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Voir les photos du secteur ${selectedCell.name}, ${selectionTitle(selectedCell, filter)}`}
-              onPress={() => openGridCell(selectedCell)}
-              style={({ pressed }) => [styles.gridSelectionCard, pressed && styles.pressed]}>
-              <View style={styles.gridSelectionHeader}>
-                <View style={styles.gridSelectionTextGroup}>
-                  <Text style={styles.gridSelectionKicker}>
-                    {filter === 'to-reprise' ? 'Archives de 1970' : 'Photos refaites'}
-                  </Text>
-                  <Text style={styles.gridSelectionTitle}>
-                    {cellPlaceName(selectedCell, locatedStations)}
-                  </Text>
-                  <Text style={styles.gridSelectionMeta}>
-                    {plural(filter === 'to-reprise' ? cellRemainingCount(selectedCell) : selectedCell.published1970, 'photo')}
-                    {filter === 'to-reprise' ? ' à retrouver' : ''}
-                  </Text>
-                </View>
-                <View style={styles.gridOpenButton}>
-                  <SymbolView name="arrow.right" size={19} tintColor={Palette.white} />
-                </View>
-              </View>
-            </Pressable>
-          ) : isExploringArchiveCell && focusedCell ? (
+          {isExploringArchiveCell && focusedCell ? (
             // Un seul panneau : le lieu et les compteurs ne sont dits qu'ici, dans l'en-tête ;
             // les cartes du carrousel ci-dessous ne répètent plus ces chiffres. L'en-tête n'a
             // plus de hauteur figée, pour ne jamais déborder sur le carrousel quand le nom du
@@ -1219,6 +1165,7 @@ export function MapScreen() {
                 </View>
                 <Pressable
                   accessibilityLabel="Fermer cette zone"
+                  accessibilityRole="button"
                   onPress={() => setFocusedCell(undefined)}
                   style={({ pressed }) => [
                     styles.archiveRailClose,
@@ -1571,23 +1518,6 @@ const styles = StyleSheet.create({
   filterSegmentLabelActive: {
     color: Palette.white,
   },
-  gridMarker: {
-    minWidth: 46,
-    height: 30,
-    paddingHorizontal: Spacing.two,
-    borderRadius: Radius.pill,
-    backgroundColor: Palette.blueDeep,
-    borderWidth: 2,
-    borderColor: Palette.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gridMarkerText: {
-    color: Palette.white,
-    fontFamily: Fonts.display,
-    ...Typography.caption,
-    fontWeight: '700',
-  },
   unlocatedCluster: {
     minWidth: 42,
     height: 42,
@@ -1932,18 +1862,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...Shadow.card,
   },
-  gridSelectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-  },
-  // Depuis que le secteur s'annonce par son arrondissement, le kicker tient sur deux lignes :
-  // sans cette contrainte il pousse le bouton d'ouverture hors de la carte, qui le rogne.
-  gridSelectionTextGroup: {
-    flex: 1,
-    minWidth: 0,
-  },
   gridSelectionKicker: {
     color: Palette.copper,
     fontFamily: Fonts.sans,
@@ -1989,16 +1907,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.48)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.82)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gridOpenButton: {
-    flexShrink: 0,
-    height: 44,
-    width: 44,
-    borderRadius: Radius.pill,
-    backgroundColor: Palette.parisBlue,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },

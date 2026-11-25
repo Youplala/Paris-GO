@@ -48,25 +48,27 @@ function ContributorPhotoCard({
   onOpen: () => void;
 }) {
   return (
-    <Pressable
-      accessibilityLabel={`Ouvrir la photo refaite ${detail.name}`}
-      accessibilityRole="button"
-      onPress={onOpen}
-      style={({ pressed }) => [
-        styles.photoCard,
-        pressed && styles.photoCardPressed,
-      ]}>
+    <View style={styles.photoCard}>
       {detail.referenceImage && detail.recaptureImage ? (
         <BeforeAfterSlider before={detail.referenceImage} after={detail.recaptureImage}
-          beforeLabel={String(detail.year)} afterLabel="2026" borderRadius={0} />
+          beforeLabel={String(detail.year)} afterLabel="2026" borderRadius={0}
+          onPressSide={onOpen} />
       ) : (
-        <View style={styles.photoFallback}>
+        <Pressable
+          accessibilityLabel={`Ouvrir la photo refaite ${detail.name}`}
+          accessibilityRole="button"
+          onPress={onOpen}
+          style={({ pressed }) => [styles.photoFallback, pressed && styles.photoCardPressed]}>
           {detail.recaptureImage || detail.referenceImage ? (
             <AdaptivePhoto source={(detail.recaptureImage ?? detail.referenceImage)!} style={StyleSheet.absoluteFill} />
           ) : null}
-        </View>
+        </Pressable>
       )}
-      <View style={styles.photoCaption}>
+      <Pressable
+        accessibilityLabel={`Ouvrir la photo refaite ${detail.name}`}
+        accessibilityRole="button"
+        onPress={onOpen}
+        style={({ pressed }) => [styles.photoCaption, pressed && styles.photoCardPressed]}>
         <ParisGoBadge photo={detail} />
         <Text style={styles.photoTitle} numberOfLines={2}>
           {detail.name}
@@ -78,8 +80,8 @@ function ContributorPhotoCard({
           </Text>
           <SymbolView name="arrow.right" size={15} tintColor={Palette.parisBlue} />
         </View>
-      </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 }
 
