@@ -23,7 +23,6 @@ import MapView, { Circle, Marker, Polygon } from 'react-native-maps';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
 
-import { AdaptivePhoto } from '@/components/adaptive-photo';
 import { ArchiveFilmstrip } from '@/components/archive-filmstrip';
 import { BeforeAfterSlider } from '@/components/before-after-slider';
 import { ArchiveFacts, RecaptureFacts } from '@/components/photo-facts';
@@ -41,6 +40,13 @@ import { useStationDetail } from '@/hooks/use-station-detail';
 import { archiveLinkForImage } from '@/services/bhvp-images';
 import { historicalReferenceForFrame } from '@/services/camera-reference';
 import { formatContributorName } from '@/utils/community-stats';
+import {
+  contributorInitials,
+  filmstripIndices,
+  formatRecaptureMonth,
+  recapturedProgressLabel,
+  type FilmstripFilter,
+} from '@/utils/archive-frames';
 import { buildPhotoReportDraft, launchPhotoReport } from '@/utils/photo-report';
 
 const BHVP_NAME = 'Bibliothèque historique de la Ville de Paris';
@@ -53,6 +59,9 @@ export function StationScreen() {
   // Le comparateur ouvre l'écran : il prend plus de la moitié de la hauteur, quitte à recadrer
   // les deux photos à l'identique. Le plein écran, au toucher, les rend en entier.
   const comparisonHeight = Math.round(Math.min(560, Math.max(380, screenHeight * 0.56)));
+  // La photo du haut remplit son cadre (recadrée, jamais de bande vide) ; le plein écran la
+  // rend en entier. Un cadre presque carré ménage les photos en largeur comme en hauteur.
+  const heroHeight = Math.round(Math.min(460, Math.max(360, screenWidth * 1.02)));
   const { id } = useLocalSearchParams<{ id: string }>();
   const { detail, summary, loading } = useStationDetail(id);
   const heroPagerRef = useRef<FlatList<ImageSource>>(null);
@@ -65,6 +74,9 @@ export function StationScreen() {
   const [comparisonActive, setComparisonActive] = useState(false);
   const [sharingCard, setSharingCard] = useState(false);
   const [shareMenuVisible, setShareMenuVisible] = useState(false);
+  // 1970 / aujourd'hui : le choix suit l'utilisateur d'une photo refaite à l'autre.
+  const [showRecapture, setShowRecapture] = useState(false);
+  const [filmstripFilter, setFilmstripFilter] = useState<FilmstripFilter>('all');
   const isArchive = (detail?.kind ?? summary?.kind) === 'archive-1970';
   const { images: archiveImages, loading: archiveImagesLoading } = useBhvpImages(
     isArchive ? detail?.archiveLinks : undefined,
@@ -82,10 +94,18 @@ export function StationScreen() {
     : detail?.referenceMetadata;
   const selectedRecaptures = (selectedArchiveLink && detail?.archiveRecaptures?.[selectedArchiveLink]) || [];
   const latestRecapture = selectedRecaptures[0];
+  const recaptureImageFor = (image: ImageSource | undefined) => {
+    const link = archiveLinkForImage(image);
+    return link ? detail?.archiveRecaptures?.[link]?.[0]?.recaptureImage : undefined;
+  };
   const frameRecaptureCounts = isArchive ? images.map(image => {
     const link = archiveLinkForImage(image);
     return link ? detail?.archiveRecaptures?.[link]?.length ?? 0 : 0;
   }) : undefined;
+  const recapturedFrameCount = frameRecaptureCounts?.filter((count) => count > 0).length ?? 0;
+  const selectedRecaptureImage = isArchive ? latestRecapture?.recaptureImage : undefined;
+  const selectedRecaptureYear = latestRecapture?.recaptureDate?.slice(0, 4) || 'Auj.';
+  const heroShowsRecapture = Boolean(showRecapture && selectedRecaptureImage);
   // Un carré de 1970 couvre une maille de 250 m : on trace son emprise réelle plutôt qu'un point.
   const squareBounds = detail?.bounds ?? summary?.bounds;
   const referenceYear = detail?.year ?? summary?.year ?? 1970;
@@ -107,11 +127,52 @@ export function StationScreen() {
   const coordinate = detail?.coordinate ?? summary?.coordinate ?? PARIS_CENTER;
   const recaptureYearLabel = detail?.recaptureDate?.slice(0, 4) || 'Aujourd’hui';
   const shareUrl = PROJECT_URL;
+  // La paire montrée en plein écran : la reprise de l'Observatoire, ou la photo de la planche
+  // sélectionnée et sa reprise la plus récente.
+  const comparisonPair =
+    hasComparison && referenceImage && recaptureImage
+      ? {
+          images: [referenceImage, recaptureImage],
+          labels: [`${referenceYear} · ARCHIVE`, `${recaptureYearLabel} · REPRISE`],
+        }
+      : selectedImage && selectedRecaptureImage
+        ? {
+            images: [selectedImage, selectedRecaptureImage],
+            labels: [`${referenceYear} · ARCHIVE`, `${selectedRecaptureYear} · REPRISE`],
+          }
+        : undefined;
 
   const selectFrame = (index: number, animated = true) => {
     const nextIndex = Math.max(0, Math.min(images.length - 1, index));
     setSelectedIndex(nextIndex);
     heroPagerRef.current?.scrollToIndex({ index: nextIndex, animated });
+  };
+
+  const changeFilmstripFilter = (filter: FilmstripFilter) => {
+    void Haptics.selectionAsync();
+    setFilmstripFilter(filter);
+    if (filter === 'done' && frameRecaptureCounts && !(frameRecaptureCounts[selectedIndex] > 0)) {
+      const firstDone = frameRecaptureCounts.findIndex((count) => count > 0);
+      if (firstDone >= 0) selectFrame(firstDone);
+    }
+  };
+
+  const toggleHeroEra = (recapture: boolean) => {
+    if (recapture === showRecapture) return;
+    void Haptics.selectionAsync();
+    setShowRecapture(recapture);
+  };
+
+  // Toucher une photo refaite ouvre la paire 1970 / aujourd'hui en plein écran, sur l'image
+  // affichée ; sinon la planche entière.
+  const openHeroPhoto = () => {
+    if (selectedImage && selectedRecaptureImage) {
+      void Haptics.selectionAsync();
+      setComparisonViewerIndex(heroShowsRecapture ? 1 : 0);
+      setComparisonViewerVisible(true);
+      return;
+    }
+    setViewerVisible(true);
   };
 
   const region = useMemo(
@@ -320,7 +381,7 @@ export function StationScreen() {
             </View>
           </View>
         ) : (
-          <View style={styles.hero}>
+          <View style={[styles.hero, { height: heroHeight }]}>
             {selectedImage ? (
               <FlatList
                 ref={heroPagerRef}
@@ -336,6 +397,7 @@ export function StationScreen() {
                   offset: screenWidth * index,
                 })}
                 initialScrollIndex={selectedIndex}
+                extraData={showRecapture}
                 keyExtractor={(_, index) => `hero-${index}`}
                 onMomentumScrollEnd={(event) => {
                   const index = Math.round(event.nativeEvent.contentOffset.x / screenWidth);
@@ -349,20 +411,24 @@ export function StationScreen() {
                     });
                   });
                 }}
-                renderItem={({ item, index }) => (
-                  <Pressable
-                    accessibilityLabel={`Agrandir la photo ${index + 1}`}
-                    accessibilityRole="button"
-                    onPress={() => setViewerVisible(true)}
-                    style={[styles.heroPage, { width: screenWidth }]}>
-                    <AdaptivePhoto
-                      source={item}
-                      style={StyleSheet.absoluteFill}
-                      transition={220}
-                    />
-                    <View style={styles.heroShade} />
-                  </Pressable>
-                )}
+                renderItem={({ item, index }) => {
+                  const recapture = showRecapture ? recaptureImageFor(item) : undefined;
+                  return (
+                    <Pressable
+                      accessibilityLabel={`Agrandir la photo ${index + 1}${recapture ? ' telle qu’elle a été refaite' : ''}`}
+                      accessibilityRole="button"
+                      onPress={openHeroPhoto}
+                      style={[styles.heroPage, { width: screenWidth, height: heroHeight }]}>
+                      <Image
+                        source={recapture ?? item}
+                        style={StyleSheet.absoluteFill}
+                        contentFit="cover"
+                        transition={220}
+                      />
+                      <View style={styles.heroShade} />
+                    </Pressable>
+                  );
+                }}
                 showsHorizontalScrollIndicator={false}
                 style={StyleSheet.absoluteFill}
               />
@@ -398,8 +464,33 @@ export function StationScreen() {
                 <Text style={styles.sourceButtonText}>Source</Text>
               </Pressable>
             </SafeAreaView>
-            <View style={styles.heroCaption}>
-              <SourcePill label={isArchive ? 'Archives BHVP · 1970' : detail?.sourceLabel ?? 'Observatoire de Paris'} inverse />
+            <View pointerEvents="box-none" style={styles.heroCaption}>
+              {selectedImage && selectedRecaptureImage ? (
+                <View accessibilityRole="tablist" style={styles.eraToggle}>
+                  {[
+                    { recapture: false, label: String(referenceYear) },
+                    { recapture: true, label: selectedRecaptureYear },
+                  ].map((option) => {
+                    const active = heroShowsRecapture === option.recapture;
+                    return (
+                      <Pressable
+                        key={option.label}
+                        accessibilityLabel={option.recapture ? `Voir la photo refaite en ${option.label}` : `Voir la photo de ${option.label}`}
+                        accessibilityRole="tab"
+                        accessibilityState={{ selected: active }}
+                        hitSlop={6}
+                        onPress={() => toggleHeroEra(option.recapture)}
+                        style={[styles.eraOption, active && styles.eraOptionActive]}>
+                        <Text style={[styles.eraOptionText, active && styles.eraOptionTextActive]}>
+                          {option.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : (
+                <SourcePill label={isArchive ? 'Archives BHVP · 1970' : detail?.sourceLabel ?? 'Observatoire de Paris'} inverse />
+              )}
               <Pressable
                 accessibilityLabel="Afficher la photo en plein écran"
                 accessibilityRole="button"
@@ -418,14 +509,47 @@ export function StationScreen() {
 
         {images.length > 1 && !hasComparison ? (
           <View style={styles.filmstripWrap}>
-            {isArchive ? <Text style={styles.archiveProgress}>
-              {detail?.publishedCount ?? 0} {detail?.publishedCount === 1 ? 'vue refaite identifiée' : 'vues refaites identifiées'} sur {archiveCount}
-            </Text> : null}
+            {isArchive ? (
+              <View style={styles.filmstripHead}>
+                <Text style={styles.archiveProgress}>
+                  {recapturedProgressLabel(recapturedFrameCount, images.length)}
+                </Text>
+                {recapturedFrameCount > 0 ? (
+                  <View style={styles.filterChips}>
+                    {([
+                      ['all', `Toutes ${images.length}`],
+                      ['done', `Refaites ${recapturedFrameCount}`],
+                    ] as const).map(([filter, label]) => {
+                      const active = filmstripFilter === filter;
+                      return (
+                        <Pressable
+                          key={filter}
+                          accessibilityLabel={filter === 'all' ? 'Montrer toutes les photos du secteur' : 'Montrer seulement les photos refaites'}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: active }}
+                          hitSlop={6}
+                          onPress={() => changeFilmstripFilter(filter)}
+                          style={[styles.filterChip, active && styles.filterChipActive]}>
+                          <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                            {label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
             <ArchiveFilmstrip
               images={images}
               selectedIndex={selectedIndex}
               onSelect={selectFrame}
               recaptureCounts={frameRecaptureCounts}
+              visibleIndices={
+                frameRecaptureCounts && recapturedFrameCount > 0
+                  ? filmstripIndices(frameRecaptureCounts, filmstripFilter)
+                  : undefined
+              }
             />
           </View>
         ) : null}
@@ -433,29 +557,55 @@ export function StationScreen() {
         <View style={styles.content}>
           {isArchive ? (
             <>
-              <Text style={styles.kicker}>Secteur {title}</Text>
-              <View style={styles.viewHead}>
-                <Text style={[styles.title, styles.archiveTitle]}>
-                  Vue {selectedIndex + 1} sur {images.length || archiveCount}
-                </Text>
-                {selectedImage ? (
-                  <View style={[styles.statusChip, latestRecapture && styles.statusChipDone]}>
-                    <SymbolView
-                      name={latestRecapture ? 'checkmark.circle.fill' : 'scope'}
-                      size={14}
-                      tintColor={latestRecapture ? Palette.white : Palette.go}
-                    />
-                    <Text style={[styles.statusChipText, latestRecapture && styles.statusChipTextDone]}>
-                      {latestRecapture ? 'Déjà refaite' : 'À retrouver'}
-                    </Text>
+              <Text style={styles.kicker}>
+                Secteur {title}
+                {selectedImage ? ` · Photo ${selectedIndex + 1}` : ''}
+              </Text>
+              {selectedImage && latestRecapture ? (
+                <View style={styles.archiveRecaptures}>
+                  {selectedRecaptures.map((recapture, index) => {
+                    const author = recapture.currentAuthor
+                      ? formatContributorName(recapture.currentAuthor)
+                      : undefined;
+                    const month = formatRecaptureMonth(recapture.recaptureDate);
+                    return (
+                      <Pressable
+                        key={recapture.id}
+                        accessibilityHint="Ouvre la fiche de cette reprise"
+                        accessibilityLabel={`Refaite par ${author ?? 'un contributeur'}${month ? ` en ${month}` : ''}. Voir la reprise`}
+                        accessibilityRole="button"
+                        onPress={() => router.push({ pathname: '/station/[id]', params: { id: recapture.id } })}
+                        style={({ pressed }) => [styles.recaptureRow, pressed && styles.shareButtonPressed]}>
+                        <View style={styles.recaptureAvatar}>
+                          <Text style={styles.recaptureAvatarText}>{contributorInitials(author)}</Text>
+                        </View>
+                        <View style={styles.recaptureRowBody}>
+                          {index === 0 ? (
+                            <View style={styles.recaptureDoneLine}>
+                              <SymbolView name="checkmark.circle.fill" size={13} tintColor={Palette.lichen} />
+                              <Text style={styles.recaptureDoneText}>Refaite</Text>
+                            </View>
+                          ) : null}
+                          <Text style={styles.recaptureRowAuthor} numberOfLines={1}>
+                            {[author ?? 'Contributeur·rice', month].filter(Boolean).join(' · ')}
+                          </Text>
+                        </View>
+                        <Text style={styles.recaptureRowAction}>Voir la reprise</Text>
+                        <SymbolView name="arrow.right" size={13} tintColor={Palette.go} />
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : selectedImage ? (
+                <>
+                  <View style={styles.statusChip}>
+                    <SymbolView name="scope" size={14} tintColor={Palette.go} />
+                    <Text style={styles.statusChipText}>À retrouver</Text>
                   </View>
-                ) : null}
-              </View>
-              {selectedImage && !latestRecapture ? (
-                <Text style={styles.storyText}>
-                  Personne ne l’a encore refaite. Les rues du reportage aident à repérer le lieu,
-                  le viseur vous guidera pour le cadrage.
-                </Text>
+                  <Text style={styles.storyText}>
+                    Personne ne l’a encore refaite. Le viseur vous guidera pour le cadrage.
+                  </Text>
+                </>
               ) : null}
             </>
           ) : (
@@ -502,43 +652,6 @@ export function StationScreen() {
           <View style={styles.facts}>
             {isArchive && selectedImage ? (
               <ArchiveFacts year={referenceYear} metadata={selectedArchiveMetadata} />
-            ) : null}
-
-            {isArchive && latestRecapture?.recaptureImage && selectedImage ? (
-              <View style={styles.archiveRecaptures}>
-                <BeforeAfterSlider
-                  key={`${selectedArchiveLink}:${latestRecapture.id}`}
-                  before={selectedImage}
-                  after={latestRecapture.recaptureImage}
-                  beforeLabel={String(referenceYear)}
-                  afterLabel={latestRecapture.recaptureDate?.slice(0, 4) || 'Aujourd’hui'}
-                  height={220}
-                  borderRadius={Radius.large}
-                  onInteractionChange={setComparisonActive}
-                />
-                <RecaptureFacts
-                  referenceYear={referenceYear}
-                  author={latestRecapture.currentAuthor}
-                  date={latestRecapture.recaptureDate}
-                  device={latestRecapture.currentDevice}
-                  address={latestRecapture.address}
-                  description={latestRecapture.description?.trim()}
-                />
-                {selectedRecaptures.map((recapture) => (
-                  <Pressable
-                    key={recapture.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Voir la reprise de ${recapture.currentAuthor ? formatContributorName(recapture.currentAuthor) : 'ce contributeur'}`}
-                    onPress={() => router.push({ pathname: '/station/[id]', params: { id: recapture.id } })}
-                    style={({ pressed }) => [styles.archiveRecaptureLink, pressed && styles.shareButtonPressed]}>
-                    <Text style={styles.archiveRecaptureLinkText}>
-                      Ouvrir la reprise de{' '}
-                      {recapture.currentAuthor ? formatContributorName(recapture.currentAuthor) : 'ce contributeur'}
-                    </Text>
-                    <SymbolView name="arrow.right" size={15} tintColor={Palette.go} />
-                  </Pressable>
-                ))}
-              </View>
             ) : null}
 
             {!isArchive && hasComparison ? (
@@ -800,10 +913,10 @@ export function StationScreen() {
           />
         </View>
       ) : null}
-      {referenceImage && recaptureImage ? (
+      {comparisonPair ? (
         <PhotoViewer
-          images={[referenceImage, recaptureImage]}
-          labels={[`${referenceYear} · ARCHIVE`, `${recaptureYearLabel} · REPRISE`]}
+          images={comparisonPair.images}
+          labels={comparisonPair.labels}
           initialIndex={comparisonViewerIndex}
           visible={comparisonViewerVisible}
           onClose={() => setComparisonViewerVisible(false)}
@@ -821,9 +934,69 @@ export function StationScreen() {
 }
 
 const styles = StyleSheet.create({
-  archiveProgress: { ...Typography.caption, fontFamily: Fonts.sans, color: Palette.white, marginHorizontal: Spacing.three, marginBottom: Spacing.two },
-  archiveRecaptureLink: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  archiveRecaptureLinkText: { ...Typography.body, flex: 1, fontFamily: Fonts.sans, color: Palette.parisBlue },
+  archiveProgress: { ...Typography.caption, flexShrink: 1, fontFamily: Fonts.sans, color: Palette.white },
+  filmstripHead: {
+    marginHorizontal: Spacing.three,
+    marginBottom: Spacing.two,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  filterChips: { flexDirection: 'row', gap: Spacing.one },
+  filterChip: {
+    minHeight: 28,
+    paddingHorizontal: Spacing.twoHalf,
+    borderRadius: Radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    justifyContent: 'center',
+  },
+  filterChipActive: { backgroundColor: Palette.brass },
+  filterChipText: { ...Typography.caption, color: Palette.white, fontFamily: Fonts.sans, fontWeight: '700' },
+  filterChipTextActive: { color: Palette.black },
+  eraToggle: {
+    flexDirection: 'row',
+    padding: 3,
+    gap: 2,
+    borderRadius: Radius.pill,
+    backgroundColor: 'rgba(8, 17, 22, 0.78)',
+  },
+  eraOption: {
+    minHeight: 34,
+    minWidth: 58,
+    paddingHorizontal: Spacing.twoHalf,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eraOptionActive: { backgroundColor: Palette.white },
+  eraOptionText: { ...Typography.caption, color: 'rgba(255,255,255,0.8)', fontFamily: Fonts.display, fontWeight: '700' },
+  eraOptionTextActive: { color: Palette.ink },
+  recaptureRow: {
+    minHeight: 60,
+    paddingHorizontal: Spacing.twoHalf,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.medium,
+    backgroundColor: Palette.white,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    ...Shadow.card,
+  },
+  recaptureAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Palette.blueMist,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recaptureAvatarText: { ...Typography.caption, color: Palette.parisBlue, fontFamily: Fonts.display, fontWeight: '700' },
+  recaptureRowBody: { flex: 1 },
+  recaptureDoneLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  recaptureDoneText: { ...Typography.caption, color: Palette.lichen, fontFamily: Fonts.sans, fontWeight: '700' },
+  recaptureRowAuthor: { ...Typography.body, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
+  recaptureRowAction: { ...Typography.caption, color: Palette.go, fontFamily: Fonts.sans, fontWeight: '700' },
   screen: {
     flex: 1,
     backgroundColor: Palette.fog,
@@ -844,7 +1017,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sans,
   },
   hero: {
-    height: 480,
     backgroundColor: Palette.blueMist,
     overflow: 'hidden',
   },
@@ -869,7 +1041,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sans,
   },
   heroPage: {
-    height: 480,
     backgroundColor: Palette.blueMist,
   },
   heroPlaceholder: {
@@ -991,16 +1162,9 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.display,
     fontWeight: '800',
   },
-  archiveTitle: { marginTop: 0, flexShrink: 1 },
-  viewHead: {
-    marginTop: Spacing.one,
-    marginBottom: Spacing.two,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-  },
   statusChip: {
+    alignSelf: 'flex-start',
+    marginTop: Spacing.two,
     minHeight: 32,
     paddingHorizontal: Spacing.twoHalf,
     borderRadius: Radius.pill,
@@ -1009,24 +1173,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.one,
   },
-  statusChipDone: {
-    backgroundColor: Palette.lichen,
-  },
   statusChipText: {
     ...Typography.caption,
     color: Palette.go,
     fontFamily: Fonts.sans,
     fontWeight: '700',
   },
-  statusChipTextDone: {
-    color: Palette.white,
-  },
   facts: {
     marginTop: Spacing.four,
     gap: Spacing.three,
   },
   archiveRecaptures: {
-    gap: Spacing.three,
+    marginTop: Spacing.two,
+    gap: Spacing.two,
   },
   description: {
     ...Typography.body,
@@ -1036,6 +1195,7 @@ const styles = StyleSheet.create({
   },
   storyText: {
     ...Typography.caption,
+    marginTop: Spacing.two,
     color: Palette.inkSoft,
     fontFamily: Fonts.sans,
   },
