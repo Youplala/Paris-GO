@@ -11,25 +11,36 @@ type ArchiveFilmstripProps = {
   selectedIndex: number;
   onSelect: (index: number) => void;
   recaptureCounts?: readonly number[];
+  /** Vignettes à montrer, dans l'ordre de la planche ; toutes par défaut. */
+  visibleIndices?: readonly number[];
 };
 
-// Des vignettes agrandies : la pellicule est la promesse d'autres vues à reprendre au même
-// endroit, elle mérite plus qu'un liseré discret.
-const FRAME_WIDTH = 148;
-const FRAME_HEIGHT = 104;
+// Des vignettes assez grandes pour reconnaître une rue, assez petites pour que la photo du haut,
+// la pellicule et la fiche tiennent ensemble dans le premier écran.
+const FRAME_WIDTH = 112;
+const FRAME_HEIGHT = 80;
 
-export function ArchiveFilmstrip({ images, selectedIndex, onSelect, recaptureCounts }: ArchiveFilmstripProps) {
+export function ArchiveFilmstrip({
+  images,
+  selectedIndex,
+  onSelect,
+  recaptureCounts,
+  visibleIndices,
+}: ArchiveFilmstripProps) {
   const scrollRef = useRef<ScrollView>(null);
+  const indices = visibleIndices ?? images.map((_, index) => index);
+  const selectedPosition = indices.indexOf(selectedIndex);
 
   useEffect(() => {
+    if (selectedPosition < 0) return;
     const frame = requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({
         animated: true,
-        x: Math.max(0, selectedIndex * (FRAME_WIDTH + Spacing.two)),
+        x: Math.max(0, selectedPosition * (FRAME_WIDTH + Spacing.two) - FRAME_WIDTH),
       });
     });
     return () => cancelAnimationFrame(frame);
-  }, [selectedIndex]);
+  }, [selectedPosition]);
 
   return (
     <ScrollView
@@ -37,39 +48,51 @@ export function ArchiveFilmstrip({ images, selectedIndex, onSelect, recaptureCou
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.content}>
-      {images.map((image, index) => (
-        <Pressable
-          key={index}
-          accessibilityLabel={`Voir la photo ${index + 1} du secteur${recaptureCounts ? (recaptureCounts[index] > 0 ? ', déjà refaite' : ', aucune reprise identifiée') : ''}`}
-          accessibilityState={{ selected: selectedIndex === index }}
-          accessibilityRole="button"
-          onPress={() => onSelect(index)}
-          style={[styles.frame, selectedIndex === index && styles.selectedFrame]}>
-          <AdaptivePhoto source={image} style={styles.image} blurRadius={10} />
-          {recaptureCounts ? (
-            <View style={[styles.status, recaptureCounts[index] > 0 && styles.statusDone]}>
-              {recaptureCounts[index] > 0 ? <SymbolView name="checkmark.circle.fill" size={12} tintColor={Palette.brass} /> : null}
-              <Text style={styles.statusText}>{recaptureCounts[index] > 0 ? 'Refaite' : 'À retrouver'}</Text>
+      {indices.map((index) => {
+        const image = images[index];
+        if (!image) return null;
+        // Seules les photos refaites portent une marque : « à retrouver » est le cas courant,
+        // l'écrire sur chaque vignette noyait les quelques reprises existantes.
+        const done = (recaptureCounts?.[index] ?? 0) > 0;
+        return (
+          <Pressable
+            key={index}
+            accessibilityLabel={`Voir la photo ${index + 1} du secteur${recaptureCounts ? (done ? ', déjà refaite' : ', aucune reprise identifiée') : ''}`}
+            accessibilityState={{ selected: selectedIndex === index }}
+            accessibilityRole="button"
+            onPress={() => onSelect(index)}
+            style={[styles.frame, selectedIndex === index && styles.selectedFrame]}>
+            <AdaptivePhoto source={image} style={styles.image} blurRadius={10} />
+            {done ? (
+              <View style={styles.doneBadge}>
+                <SymbolView name="checkmark" size={11} weight="heavy" tintColor={Palette.black} />
+              </View>
+            ) : null}
+            <View style={styles.number}>
+              <Text style={styles.numberText}>{String(index + 1).padStart(2, '0')}</Text>
             </View>
-          ) : null}
-          <View style={styles.number}>
-            <Text style={styles.numberText}>{String(index + 1).padStart(2, '0')}</Text>
-          </View>
-        </Pressable>
-      ))}
+          </Pressable>
+        );
+      })}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  status: { position: 'absolute', top: Spacing.one, right: Spacing.one, paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one, borderRadius: Radius.pill, backgroundColor: 'rgba(8, 17, 22, 0.86)',
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  statusDone: { backgroundColor: Palette.parisBlue },
-  statusText: { ...Typography.caption, color: Palette.white, fontFamily: Fonts.sans, fontWeight: '600' },
+  doneBadge: {
+    position: 'absolute',
+    top: Spacing.one,
+    right: Spacing.one,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Palette.brass,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   content: {
     gap: Spacing.two,
-    paddingHorizontal: Spacing.two,
+    paddingHorizontal: Spacing.three,
   },
   frame: {
     width: FRAME_WIDTH,
