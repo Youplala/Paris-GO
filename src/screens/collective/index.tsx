@@ -50,19 +50,20 @@ function LiveComparisonCard({
   if (!detail.referenceImage || !detail.recaptureImage) return null;
 
   return (
-    <Pressable
-      accessibilityLabel={`Ouvrir la photo refaite ${detail.name}`}
-      accessibilityRole="button"
-      onPress={onOpen}
-      style={({ pressed }) => [styles.activityCard, pressed && styles.activityCardPressed]}>
+    <View style={styles.activityCard}>
       <BeforeAfterSlider
         before={detail.referenceImage}
         after={detail.recaptureImage}
         beforeLabel={String(detail.year)}
         afterLabel="2026"
         borderRadius={0}
+        onPressSide={onOpen}
       />
-      <View style={styles.activityBody}>
+      <Pressable
+        accessibilityLabel={`Ouvrir la photo refaite ${detail.name}`}
+        accessibilityRole="button"
+        onPress={onOpen}
+        style={({ pressed }) => [styles.activityBody, pressed && styles.activityCardPressed]}>
         <ParisGoBadge photo={detail} />
         <Text style={styles.activityTitle}>{detail.name}</Text>
         <View style={styles.activityMetaRow}>
@@ -77,8 +78,8 @@ function LiveComparisonCard({
           </Text>
           <SymbolView name="arrow.right" size={13} tintColor={Palette.parisBlue} />
         </View>
-      </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 }
 

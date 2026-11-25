@@ -1,6 +1,8 @@
+/* global jest, afterEach, it, expect */
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { Text } from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
 
 import { BeforeAfterSlider } from '@/components/before-after-slider';
 
@@ -68,4 +70,23 @@ it('ignore les chargements de l’ancienne paire quand les sources changent', as
     photo(nextAfter.uri).props.onLoad();
   });
   expect(text()).toContain('Glissez pour comparer');
+});
+
+it('ouvre la photo sur un appui réussi, jamais sur un geste annulé', async () => {
+  const onPressSide = jest.fn();
+  await act(async () => { renderer = create(comparison({ onPressSide })); });
+  const layout = renderer.root.findAll(node => typeof node.props.onLayout === 'function')[0];
+  await act(async () => {
+    layout.props.onLayout({ nativeEvent: { layout: { width: 400 } } });
+    photo(before.uri).props.onLoad();
+    photo(after.uri).props.onLoad();
+  });
+  const [, tap] = renderer.root.findByType(GestureDetector).props.gesture.gestures;
+  await act(async () => tap.handlers.onEnd({ x: 80 }, false));
+  expect(onPressSide).not.toHaveBeenCalled();
+  await act(async () => tap.handlers.onEnd({ x: 80 }, true));
+  expect(onPressSide).toHaveBeenLastCalledWith('before');
+  await act(async () => tap.handlers.onEnd({ x: 320 }, true));
+  expect(onPressSide).toHaveBeenLastCalledWith('after');
+  expect(onPressSide).toHaveBeenCalledTimes(2);
 });

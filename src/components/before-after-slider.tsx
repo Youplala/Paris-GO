@@ -209,9 +209,9 @@ export function BeforeAfterSlider({
       cancelAnimation(ratio);
       cancelAnimation(active);
     })
-    .onEnd((event) => {
+    .onEnd((event, success) => {
       'worklet';
-      if (!containerWidth.value) return;
+      if (!success || !containerWidth.value) return;
       if (opensOnPress) {
         runOnJS(pressSide)(event.x / containerWidth.value < ratio.value ? 'before' : 'after');
         return;
