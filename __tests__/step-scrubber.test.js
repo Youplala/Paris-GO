@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { Text } from 'react-native';
-import { GestureDetector } from 'react-native-gesture-handler';
+import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 
 jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'));
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
@@ -17,7 +17,7 @@ const slider = () => renderer.root.find((node) => node.props.accessibilityRole =
 
 it('affiche seulement « 2/5 » et se laisse piloter au glissé comme à VoiceOver', async () => {
   const onChange = jest.fn();
-  await act(async () => { renderer = create(<StepScrubber count={5} index={1} width={300} onChange={onChange} />); });
+  await act(async () => { renderer = create(<GestureHandlerRootView><StepScrubber count={5} index={1} width={300} onChange={onChange} /></GestureHandlerRootView>); });
   expect(label()).toEqual(['2/5']);
   expect(slider().props.accessibilityValue).toMatchObject({ now: 2, max: 5, text: '2 sur 5' });
   expect(renderer.root.findAllByType(GestureDetector)).toHaveLength(1);
@@ -27,7 +27,7 @@ it('affiche seulement « 2/5 » et se laisse piloter au glissé comme à VoiceOv
   await act(async () => slider().props.onAccessibilityAction({ nativeEvent: { actionName: 'decrement' } }));
   expect(onChange).toHaveBeenLastCalledWith(0);
 
-  await act(async () => renderer.update(<StepScrubber count={5} index={4} width={300} onChange={onChange} />));
+  await act(async () => renderer.update(<GestureHandlerRootView><StepScrubber count={5} index={4} width={300} onChange={onChange} /></GestureHandlerRootView>));
   expect(label()).toEqual(['5/5']);
   await act(async () => slider().props.onAccessibilityAction({ nativeEvent: { actionName: 'increment' } }));
   expect(onChange).toHaveBeenCalledTimes(2);

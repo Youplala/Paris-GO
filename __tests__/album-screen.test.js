@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { Text, TextInput } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const mockPush = jest.fn();
 const mockRename = jest.fn();
@@ -68,7 +69,7 @@ const pressable = (label) => renderer.root.findAll((node) =>
   typeof node.props.onPress === 'function' && (node.props.accessibilityLabel === label || node.props.accessibilityHint === label))[0];
 
 async function render() {
-  await act(async () => { renderer = create(<AlbumScreen />); });
+  await act(async () => { renderer = create(<GestureHandlerRootView><AlbumScreen /></GestureHandlerRootView>); });
   await act(async () => {});
   await act(async () => { jest.advanceTimersByTime(1); });
 }

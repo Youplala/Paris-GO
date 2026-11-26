@@ -12,6 +12,7 @@ import {
   Text,
   useWindowDimensions,
   View,
+  type ViewInstance,
 } from 'react-native';
 import MapView from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -55,7 +56,7 @@ export function AlbumShareScreen() {
   const [loadedByFormat, setLoadedByFormat] = useState<Partial<Record<AlbumSlideFormat, number>>>({});
   const [waitedByFormat, setWaitedByFormat] = useState<Partial<Record<AlbumSlideFormat, boolean>>>({});
   const [busy, setBusy] = useState<'save' | 'share'>();
-  const slideRefs = useRef<(View | null)[]>([]);
+  const slideRefs = useRef<(ViewInstance | null)[]>([]);
   const snapshotMapRef = useRef<MapView>(null);
 
   const pairs: AlbumSlidePair[] = useMemo(
@@ -122,7 +123,7 @@ export function AlbumShareScreen() {
     () => setLoadedByFormat((current) => ({ ...current, [format]: (current[format] ?? 0) + 1 })),
     [format],
   );
-  const registerSlide = useCallback((index: number, node: View | null) => {
+  const registerSlide = useCallback((index: number, node: ViewInstance | null) => {
     slideRefs.current[index] = node;
   }, []);
 

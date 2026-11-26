@@ -1,6 +1,6 @@
 import { Image, type ImageSource } from 'expo-image';
 import { forwardRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type ViewInstance } from 'react-native';
 
 import { Fonts, Palette } from '@/constants/theme';
 import { dottedPath, projectOnSquare, type RoutePoint, type SquareRegion } from '@/services/album-route';
@@ -117,7 +117,7 @@ type CoverSlideProps = SlideBaseProps & {
   fallbackCover?: AlbumSlidePair;
 };
 
-export const AlbumCoverSlide = forwardRef<View, CoverSlideProps>(function AlbumCoverSlide(
+export const AlbumCoverSlide = forwardRef<ViewInstance, CoverSlideProps>(function AlbumCoverSlide(
   { format, width, title, day, stats, map, fallbackCover, onImageLoad },
   ref,
 ) {
@@ -171,7 +171,7 @@ type PairSlideProps = SlideBaseProps & {
   total: number;
 };
 
-export const AlbumPairSlide = forwardRef<View, PairSlideProps>(function AlbumPairSlide(
+export const AlbumPairSlide = forwardRef<ViewInstance, PairSlideProps>(function AlbumPairSlide(
   { format, width, pair, position, total, onImageLoad },
   ref,
 ) {
