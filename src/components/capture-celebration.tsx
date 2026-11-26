@@ -242,7 +242,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.display,
     fontWeight: '900',
     fontSize: 96,
-    lineHeight: 100,
+    // Les chiffres de l'Avenir Next Condensed débordent au-dessus de la taille nominale :
+    // une hauteur de ligne serrée les coupait en haut.
+    lineHeight: 122,
+    paddingTop: 6,
     fontVariant: ['tabular-nums'],
     textShadowColor: 'rgba(0,0,0,0.45)',
     textShadowRadius: 16,
