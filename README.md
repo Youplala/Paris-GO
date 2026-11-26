@@ -154,6 +154,12 @@ export EXPO_APPLE_ID="votre@adresse"
 eas build --platform ios --profile production --auto-submit
 ```
 
+Les profils iOS de `eas.json` fixent l’image `macos-tahoe-26.6-xcode-27.2`. Depuis avril 2027,
+App Store Connect refuse les binaires compilés avec un SDK antérieur à iOS 27 (avertissement
+ITMS-90725). Changer d’image impose de vérifier qu’elle embarque toujours Xcode 27 ou plus récent,
+et une version stable plutôt qu’une RC. Le cycle de vie UIScene qu’exige ce SDK est fourni par
+Expo depuis le SDK 58, sans réglage particulier.
+
 ## Licence
 
 Le code est publié sous licence MIT (voir `LICENSE`). Les données et les photographies relèvent

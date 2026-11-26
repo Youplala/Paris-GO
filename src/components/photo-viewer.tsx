@@ -12,6 +12,7 @@ import {
   Text,
   useWindowDimensions,
   View,
+  type ScrollViewInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -37,7 +38,7 @@ export function PhotoViewer({
 }: PhotoViewerProps) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const pagerRef = useRef<ScrollView>(null);
+  const pagerRef = useRef<ScrollViewInstance>(null);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const topBarOffset = Math.max(insets.top, 52) + Spacing.one;
   const bottomBarOffset = Math.max(insets.bottom, 18) + Spacing.two;

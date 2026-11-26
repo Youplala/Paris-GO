@@ -44,7 +44,7 @@ function Column({
 }) {
   // Les barres poussent en cascade : l'œil suit la progression au lieu de tout voir surgir.
   const target = max ? Math.max(0.04, bar.value / max) : 0;
-  const grow = useDerivedValue(() => withDelay(index * 70, withSpring(target, SPRING)), [target, index]);
+  const grow = useDerivedValue(() => withDelay(index * 70, withSpring(target, SPRING)));
 
   const barStyle = useAnimatedStyle(() => ({
     height: grow.value * height,

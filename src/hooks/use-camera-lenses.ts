@@ -1,4 +1,4 @@
-import { CameraView } from 'expo-camera';
+import { CameraView, type LensInfo } from 'expo-camera';
 import { useCallback, useEffect, useState, type RefObject } from 'react';
 import { Platform } from 'react-native';
 
@@ -11,13 +11,16 @@ export type CameraLens = {
   order: number;
 };
 
-/** Objectif par défaut d'expo-camera, seul disponible sur les appareils à une seule caméra. */
-const DEFAULT_LENS = 'builtInWideAngleCamera';
+/**
+ * Objectif par défaut d'expo-camera, seul disponible sur les appareils à une seule caméra. Depuis
+ * le SDK 58, `selectedLens` attend le type AVFoundation (`deviceType`), et non plus le nom affiché.
+ */
+const DEFAULT_LENS = 'AVCaptureDeviceTypeBuiltInWideAngleCamera';
 
 /**
- * Les identifiants viennent d'AVFoundation et leur forme exacte peut varier selon la version
- * (`builtInUltraWideCamera`, parfois préfixé `AVCaptureDeviceType…`). On reconnaît donc par
- * sous-chaîne plutôt que par égalité stricte, pour ne pas rater un objectif au premier renommage.
+ * `id` est le `deviceType` AVFoundation (`AVCaptureDeviceTypeBuiltInUltraWideCamera`…). On le
+ * reconnaît par sous-chaîne plutôt que par égalité stricte, pour ne pas rater un objectif au
+ * premier renommage.
  */
 function describeLens(id: string): CameraLens | undefined {
   const normalized = id.toLowerCase();
@@ -43,9 +46,9 @@ export function useCameraLenses(cameraRef: RefObject<CameraView | null>, ready: 
   const [lenses, setLenses] = useState<CameraLens[]>([]);
   const [selectedLens, setSelectedLens] = useState(DEFAULT_LENS);
 
-  const readLenses = useCallback((available: string[]) => {
+  const readLenses = useCallback((available: LensInfo[]) => {
     const described = available
-      .map(describeLens)
+      .map((lens) => describeLens(lens.deviceType))
       .filter((lens): lens is CameraLens => lens !== undefined)
       .sort((left, right) => left.order - right.order);
 

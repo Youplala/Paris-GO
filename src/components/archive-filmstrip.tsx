@@ -1,7 +1,14 @@
 import type { ImageSource } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type ScrollViewInstance,
+} from 'react-native';
 
 import { AdaptivePhoto } from '@/components/adaptive-photo';
 import { Fonts, Palette, Radius, Spacing, Typography } from '@/constants/theme';
@@ -27,7 +34,7 @@ export function ArchiveFilmstrip({
   recaptureCounts,
   visibleIndices,
 }: ArchiveFilmstripProps) {
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const indices = visibleIndices ?? images.map((_, index) => index);
   const selectedPosition = indices.indexOf(selectedIndex);
 
