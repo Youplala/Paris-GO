@@ -39,7 +39,7 @@ import { PARIS_CENTER } from '@/data/archive';
 import { useBhvpImages } from '@/hooks/use-bhvp-images';
 import { useStationDetail } from '@/hooks/use-station-detail';
 import { archiveLinkForImage } from '@/services/bhvp-images';
-import { historicalReferenceForFrame } from '@/services/camera-reference';
+import { historicalReferenceForFrame, referenceUriOf } from '@/services/camera-reference';
 import { formatContributorName } from '@/utils/community-stats';
 import {
   contributorInitials,
@@ -63,12 +63,16 @@ export function StationScreen() {
   // La photo du haut remplit son cadre (recadrée, jamais de bande vide) ; le plein écran la
   // rend en entier. Un cadre presque carré ménage les photos en largeur comme en hauteur.
   const heroHeight = Math.round(Math.min(460, Math.max(360, screenWidth * 1.02)));
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // `frame` : ouvrir la pellicule sur une vue précise (depuis le profil d'un photographe).
+  const { id, frame } = useLocalSearchParams<{ id: string; frame?: string }>();
   const { detail, summary, loading } = useStationDetail(id);
   const heroPagerRef = useRef<FlatList<ImageSource>>(null);
   const shareCardRef = useRef<ViewInstance>(null);
   const archiveCount = detail?.archiveLinks.length || summary?.frameCount || 0;
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState(() => {
+    const requested = Number.parseInt(frame ?? '', 10);
+    return Number.isInteger(requested) && requested >= 0 ? requested : 0;
+  });
   const [comparisonViewerVisible, setComparisonViewerVisible] = useState(false);
   const [comparisonViewerIndex, setComparisonViewerIndex] = useState(0);
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -78,6 +82,7 @@ export function StationScreen() {
   // 1970 / aujourd'hui : le choix suit l'utilisateur d'une photo refaite à l'autre.
   const [showRecapture, setShowRecapture] = useState(false);
   const [filmstripFilter, setFilmstripFilter] = useState<FilmstripFilter>('all');
+  const [brokenRecaptureUris, setBrokenRecaptureUris] = useState<string[]>([]);
   const isArchive = (detail?.kind ?? summary?.kind) === 'archive-1970';
   const { images: archiveImages, loading: archiveImagesLoading } = useBhvpImages(
     isArchive ? detail?.archiveLinks : undefined,
@@ -95,16 +100,21 @@ export function StationScreen() {
     : detail?.referenceMetadata;
   const selectedRecaptures = (selectedArchiveLink && detail?.archiveRecaptures?.[selectedArchiveLink]) || [];
   const latestRecapture = selectedRecaptures[0];
+  // Une reprise dont l'image n'existe plus chez l'Observatoire (404) ne propose pas de bascule.
+  const usableRecapture = (image: ImageSource | undefined) => {
+    const uri = referenceUriOf(image);
+    return uri && brokenRecaptureUris.includes(uri) ? undefined : image;
+  };
   const recaptureImageFor = (image: ImageSource | undefined) => {
     const link = archiveLinkForImage(image);
-    return link ? detail?.archiveRecaptures?.[link]?.[0]?.recaptureImage : undefined;
+    return usableRecapture(link ? detail?.archiveRecaptures?.[link]?.[0]?.recaptureImage : undefined);
   };
   const frameRecaptureCounts = isArchive ? images.map(image => {
     const link = archiveLinkForImage(image);
     return link ? detail?.archiveRecaptures?.[link]?.length ?? 0 : 0;
   }) : undefined;
   const recapturedFrameCount = frameRecaptureCounts?.filter((count) => count > 0).length ?? 0;
-  const selectedRecaptureImage = isArchive ? latestRecapture?.recaptureImage : undefined;
+  const selectedRecaptureImage = isArchive ? usableRecapture(latestRecapture?.recaptureImage) : undefined;
   const selectedRecaptureYear = latestRecapture?.recaptureDate?.slice(0, 4) || 'Auj.';
   const heroShowsRecapture = Boolean(showRecapture && selectedRecaptureImage);
   // Un carré de 1970 couvre une maille de 250 m : on trace son emprise réelle plutôt qu'un point.
@@ -425,6 +435,10 @@ export function StationScreen() {
                         style={StyleSheet.absoluteFill}
                         contentFit="cover"
                         transition={220}
+                        onError={() => {
+                          const uri = referenceUriOf(recapture);
+                          if (uri) setBrokenRecaptureUris((current) => current.includes(uri) ? current : [...current, uri]);
+                        }}
                       />
                       <View style={styles.heroShade} />
                     </Pressable>
@@ -588,8 +602,9 @@ export function StationScreen() {
                             </View>
                           ) : null}
                           <Text style={styles.recaptureRowAuthor} numberOfLines={1}>
-                            {[author ?? 'Contributeur·rice', month].filter(Boolean).join(' · ')}
+                            {author ?? 'Contributeur·rice'}
                           </Text>
+                          {month ? <Text style={styles.recaptureRowDate}>{month}</Text> : null}
                         </View>
                         <Text style={styles.recaptureRowAction}>Voir la reprise</Text>
                         <SymbolView name="arrow.right" size={13} tintColor={Palette.go} />
@@ -997,6 +1012,7 @@ const styles = StyleSheet.create({
   recaptureDoneLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   recaptureDoneText: { ...Typography.caption, color: Palette.lichen, fontFamily: Fonts.sans, fontWeight: '700' },
   recaptureRowAuthor: { ...Typography.body, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
+  recaptureRowDate: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   recaptureRowAction: { ...Typography.caption, color: Palette.go, fontFamily: Fonts.sans, fontWeight: '700' },
   screen: {
     flex: 1,

@@ -70,6 +70,7 @@
     ],
     "testPathIgnorePatterns": [
       "/node_modules/",
+      "/__tests__/album-fixtures.js",
       "<rootDir>/tests/",
       "/ios/",
       "/android/"

@@ -1,6 +1,7 @@
+import { useRouter } from 'expo-router';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Fonts, Kicker, Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import type { ArchivePhotoMetadata } from '@/data/snapshot';
@@ -87,6 +88,7 @@ type ArchiveFactsProps = {
  * le catalogue en dit. Chaque ligne n'apparaît que si la notice la renseigne.
  */
 export function ArchiveFacts({ year, metadata, fallbackAuthor }: ArchiveFactsProps) {
+  const router = useRouter();
   const author = (metadata?.author ?? fallbackAuthor)?.trim();
   const identified = author && !/non identifi/i.test(author);
   const technique = metadata?.technique ? formatTechnique(metadata.technique) : undefined;
@@ -98,9 +100,21 @@ export function ArchiveFacts({ year, metadata, fallbackAuthor }: ArchiveFactsPro
   return (
     <Card era={String(year)} tone="archive" title="La photo d’origine">
       <Fact icon="person.crop.square" label="Photographe">
-        <Text style={styles.factValue}>
-          {identified ? formatContributorName(author) : 'Photographe non identifié'}
-        </Text>
+        {identified ? (
+          <Pressable
+            accessibilityHint="Ouvre le profil de ce photographe de 1970"
+            accessibilityRole="link"
+            onPress={() => router.push({ pathname: '/photographer/[name]', params: { name: author } })}
+            style={({ pressed }) => [styles.personLink, pressed && styles.personLinkPressed]}>
+            <Text style={styles.factValue}>{formatContributorName(author)}</Text>
+            <View style={styles.profilePill}>
+              <Text style={styles.profilePillText}>Profil</Text>
+              <SymbolView name="chevron.right" size={10} weight="bold" tintColor={Palette.go} />
+            </View>
+          </Pressable>
+        ) : (
+          <Text style={styles.factValue}>Photographe non identifié</Text>
+        )}
         {metadata?.candidateNumber ? (
           <Text style={styles.factDetail}>
             Candidat n° {metadata.candidateNumber} du concours de {year}
@@ -204,6 +218,10 @@ export function RecaptureFacts({
 }
 
 const styles = StyleSheet.create({
+  personLink: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, alignSelf: 'flex-start' },
+  personLinkPressed: { opacity: 0.7 },
+  profilePill: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill, backgroundColor: Palette.goSoft },
+  profilePillText: { ...Typography.caption, color: Palette.go, fontFamily: Fonts.sans, fontWeight: '700' },
   card: {
     borderRadius: Radius.large,
     backgroundColor: Palette.white,
