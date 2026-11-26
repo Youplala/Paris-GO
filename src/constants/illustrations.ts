@@ -8,4 +8,9 @@ export const Illustrations = {
   parisProgress: require('../../assets/illustrations/paris-progression.png'),
   refaitStamp: require('../../assets/illustrations/tampon-refait.png'),
   photographerBadge: require('../../assets/illustrations/badge-photographe-1970.png'),
+  badgeFirst: require('../../assets/illustrations/badge-premiere-reprise.png'),
+  badgeTen: require('../../assets/illustrations/badge-10-reprises.png'),
+  badgeSector: require('../../assets/illustrations/badge-secteur-complete.png'),
+  cameraPermission: require('../../assets/illustrations/autorisation-camera.png'),
+  offline: require('../../assets/illustrations/hors-connexion.png'),
 } as const;

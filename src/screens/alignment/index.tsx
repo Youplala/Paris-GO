@@ -32,6 +32,7 @@ import Reanimated, {
 } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Illustrations } from '@/constants/illustrations';
 import { Fonts, Palette, Radius, Spacing, Typography } from '@/constants/theme';
 import { SIMULATED_CAMERA_IMAGE } from '@/constants/demo';
 
@@ -437,7 +438,7 @@ export function AlignmentScreen() {
           {permissionLoading ? (
             <ActivityIndicator color={Palette.brass} size="large" />
           ) : (
-            <SymbolView name="camera.fill" size={34} tintColor={Palette.brass} />
+            <Image source={Illustrations.cameraPermission} style={styles.permissionIllustration} contentFit="contain" />
           )}
           <Text style={styles.permissionTitle}>
             {permissionLoading ? 'Préparation de la caméra…' : 'Accès à la caméra requis'}
@@ -886,6 +887,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.four,
   },
+  permissionIllustration: { width: 168, height: 168 },
   permissionTitle: {
     ...Typography.display,
     marginTop: Spacing.three,

@@ -27,7 +27,10 @@ jest.mock('@/services/fieldbook', () => ({
 jest.mock('@/services/album-title-store', () => ({
   albumTitleStore: { list: async () => ({ '2026-07-14': 'Autour du Champ-de-Mars' }) },
 }));
-const mockStations = { findDetail: () => ({ kind: 'archive-1970', year: 1970, archiveLinks: [], archiveMetadata: [], images: [] }) };
+const mockStations = {
+  findDetail: () => ({ kind: 'archive-1970', year: 1970, archiveLinks: [], archiveMetadata: [], images: [] }),
+  findStation: () => ({ frameCount: 32 }),
+};
 jest.mock('@/providers/stations-provider', () => ({ useStations: () => mockStations }));
 jest.mock('react-native-safe-area-context', () => {
   const { View: MockView } = require('react-native');
@@ -46,6 +49,7 @@ it('ouvre le carnet sur les balades, titres choisis compris, et bascule vers les
   expect(texts()).toEqual(expect.arrayContaining([
     'Carnet', '2', 'balades', '3', 'reprises', 'Balades · 2', 'Photos · 3',
     'Autour du Champ-de-Mars', 'Balade du 21 juin 2025', '2 reprises', 'Secteur 995',
+    'MES BADGES', '1/3', 'Première reprise', '3/10', 'Secteur complété',
   ]));
 
   const album = renderer.root.find((node) => typeof node.props.onPress === 'function'

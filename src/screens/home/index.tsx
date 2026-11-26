@@ -293,9 +293,12 @@ export function HomeScreen() {
             par le CAUE de Paris.
           </Text>
           {syncError ? (
-            <Text accessibilityLiveRegion="polite" style={styles.dataError}>
-              Mise à jour impossible pour le moment — données disponibles hors connexion.
-            </Text>
+            <View style={styles.offline}>
+              <Image source={Illustrations.offline} style={styles.offlineArt} contentFit="contain" />
+              <Text accessibilityLiveRegion="polite" style={styles.offlineText}>
+                Pas de réseau pour le moment. Les photos et la carte restent disponibles.
+              </Text>
+            </View>
           ) : null}
           <Pressable
             accessibilityRole="link"
@@ -495,6 +498,9 @@ const styles = StyleSheet.create({
     color: Palette.inkSoft,
     fontFamily: Fonts.sans,
   },
+  offline: { flexDirection: 'row', alignItems: 'center', gap: Spacing.twoHalf, padding: Spacing.twoHalf, borderRadius: Radius.medium, backgroundColor: Palette.white },
+  offlineArt: { width: 56, height: 56 },
+  offlineText: { ...Typography.caption, flex: 1, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '600' },
   dataError: {
     ...Typography.body,
     color: Palette.danger,

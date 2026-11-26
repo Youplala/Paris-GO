@@ -20,6 +20,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Illustrations } from '@/constants/illustrations';
+import { BadgeShelf } from '@/components/badge-shelf';
+import { useStations } from '@/providers/stations-provider';
+import { computeBadges } from '@/services/badges';
 import { AlbumCoverCard } from '@/components/album-cover-card';
 import {
   Fonts,
@@ -149,6 +152,11 @@ export function FieldbookScreen() {
   };
 
   const state = getFieldbookViewState(captures);
+  const { findStation } = useStations();
+  const badges = useMemo(
+    () => computeBadges(captures, (stationId) => findStation(stationId)?.frameCount),
+    [captures, findStation],
+  );
   const albums = useMemo(() => groupCapturesIntoAlbums(captures), [captures]);
   const showAlbums = view === 'albums' && albums.length > 0;
   const totalDistance = formatWalkDistance(
@@ -224,10 +232,15 @@ export function FieldbookScreen() {
           <Pressable onPress={() => router.replace('/map')} style={styles.retry}>
             <Text style={styles.retryText}>Choisir une photo de 1970</Text>
           </Pressable>
+          <View style={styles.emptyBadges}>
+            <BadgeShelf badges={badges} />
+          </View>
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
-          <View style={styles.summary}>
+          <BadgeShelf badges={badges} />
+
+          <View style={[styles.summary, styles.summaryAfterBadges]}>
             {[
               { value: String(albums.length), label: albums.length > 1 ? 'balades' : 'balade' },
               { value: String(state.count), label: state.count > 1 ? 'reprises' : 'reprise' },
@@ -354,6 +367,8 @@ const styles = StyleSheet.create({
   retryText: { ...Typography.body, color: Palette.white, fontFamily: Fonts.sans, fontWeight: '700' },
   list: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two, paddingBottom: Spacing.six },
   summary: { flexDirection: 'row', gap: Spacing.two },
+  summaryAfterBadges: { marginTop: Spacing.three },
+  emptyBadges: { alignSelf: 'stretch', marginTop: Spacing.three },
   summaryItem: { flex: 1, paddingVertical: Spacing.twoHalf, paddingHorizontal: Spacing.twoHalf, borderRadius: Radius.medium, backgroundColor: Palette.white, ...Shadow.card },
   summaryValue: { ...Stat, fontSize: 26, lineHeight: 30, color: Palette.parisBlue },
   summaryLabel: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '600' },
