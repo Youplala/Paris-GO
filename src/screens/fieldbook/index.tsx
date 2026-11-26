@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
   },
   center: { flex: 1, padding: Spacing.four, alignItems: 'center', justifyContent: 'center' },
   status: { ...Typography.caption, marginTop: Spacing.two, color: Palette.inkSoft, fontFamily: Fonts.sans },
-  emptyIllustration: { width: 240, height: 240, borderRadius: Radius.large },
+  emptyIllustration: { width: 200, height: 200 },
   emptyTitle: { ...Typography.display, marginTop: Spacing.three, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
   emptyCopy: { ...Typography.body, marginTop: Spacing.two, maxWidth: 300, textAlign: 'center', color: Palette.inkSoft, fontFamily: Fonts.sans },
   retry: { marginTop: Spacing.four, minHeight: 52, paddingHorizontal: Spacing.four, borderRadius: Radius.pill, backgroundColor: Palette.go, alignItems: 'center', justifyContent: 'center' },

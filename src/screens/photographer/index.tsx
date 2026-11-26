@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   cardTitle: { ...Typography.body, flex: 1, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
   progressValue: { ...Typography.title, color: Palette.go, fontFamily: Fonts.display, fontWeight: '800' },
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.twoHalf },
-  badge: { width: 64, height: 64, borderRadius: Radius.small },
+  badge: { width: 56, height: 56 },
   badgeCopy: { flex: 1 },
   badgeLocked: { opacity: 0.35 },
   cardCopy: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },

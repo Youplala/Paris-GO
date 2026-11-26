@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
     gap: Spacing.twoHalf,
   },
   progressHeadCopy: { flex: 1 },
-  progressIllustration: { width: 88, height: 88, borderRadius: Radius.medium },
+  progressIllustration: { width: 72, height: 72 },
   progressHint: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   progressLabel: {
     ...Typography.body,
