@@ -36,7 +36,7 @@ type StepCarouselProps = {
   onUserScroll?: () => void;
 };
 
-const CARD_HEIGHT = 228;
+const CARD_HEIGHT = 196;
 const GAP = 14;
 
 export const StepCarousel = forwardRef<StepCarouselHandle, StepCarouselProps>(function StepCarousel(
@@ -188,14 +188,14 @@ const styles = StyleSheet.create({
   yearToday: { backgroundColor: Palette.parisBlue },
   yearText: { color: Palette.white, fontFamily: Fonts.display, fontWeight: '800', fontSize: 14, lineHeight: 17 },
   copy: { position: 'absolute', left: Spacing.threeHalf, right: Spacing.threeHalf, bottom: Spacing.threeHalf },
-  title: { color: Palette.white, fontFamily: Fonts.display, fontWeight: '800', fontSize: 28, lineHeight: 31 },
+  title: { color: Palette.white, fontFamily: Fonts.display, fontWeight: '800', fontSize: 24, lineHeight: 27 },
   subtitle: { marginTop: 2, color: 'rgba(255, 255, 255, 0.86)', fontFamily: Fonts.sans, fontWeight: '600', fontSize: 14, lineHeight: 19 },
   inset: {
     position: 'absolute',
     top: Spacing.twoHalf,
     right: Spacing.twoHalf,
-    width: 76,
-    height: 58,
+    width: 68,
+    height: 52,
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 2,

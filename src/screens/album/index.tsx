@@ -76,7 +76,7 @@ export function AlbumScreen() {
   const stops = useMemo(() => groupRouteStops(route), [route]);
   const drawnRoute = useMemo(() => partialRoute(route, routeProgress), [route, routeProgress]);
 
-  const mapPadding = { top: insets.top + 150, bottom: 330 + insets.bottom, left: 32, right: 84 };
+  const mapPadding = { top: insets.top + 150, bottom: 300 + insets.bottom, left: 32, right: 84 };
 
   const flyToStep = useCallback(
     (index: number) => {
@@ -282,9 +282,8 @@ export function AlbumScreen() {
         onPanDrag={() => setPlaying(false)}>
         {drawnRoute.length > 1 ? (
           <>
-            <Polyline coordinates={drawnRoute} strokeColor="rgba(8, 17, 22, 0.4)" strokeWidth={8} lineCap="round" lineJoin="round" />
-            <Polyline coordinates={drawnRoute} strokeColor={Palette.white} strokeWidth={4} lineCap="round" lineJoin="round" />
-            <Polyline coordinates={drawnRoute} strokeColor="rgba(13, 42, 60, 0.55)" strokeWidth={4} lineDashPattern={[0.1, 9]} lineCap="round" />
+            <Polyline coordinates={drawnRoute} strokeColor="rgba(8, 17, 22, 0.35)" strokeWidth={5.5} lineCap="round" lineJoin="round" />
+            <Polyline coordinates={drawnRoute} strokeColor={Palette.white} strokeWidth={2.5} lineCap="round" lineJoin="round" />
           </>
         ) : null}
         {stops.map((stop, order) => {

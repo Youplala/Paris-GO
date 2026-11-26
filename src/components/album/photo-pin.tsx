@@ -20,7 +20,9 @@ type PhotoPinProps = {
   order: number;
 };
 
-const SIZE = 54;
+// Repère discret : la photo se reconnaît, sans masquer les rues. La zone tactile (`box`)
+// reste au-dessus des 44 pt recommandés.
+const SIZE = 38;
 
 /** Repère photo de la balade : la reprise de 2026 dans un disque blanc, cerclé d'orange si actif. */
 export function PhotoPin({ source, selected, stacked, order }: PhotoPinProps) {
@@ -37,7 +39,7 @@ export function PhotoPin({ source, selected, stacked, order }: PhotoPinProps) {
 
   const pinStyle = useAnimatedStyle(() => ({
     opacity: appear.value,
-    transform: [{ scale: appear.value * (1 + focus.value * 0.22) }],
+    transform: [{ scale: appear.value * (1 + focus.value * 0.18) }],
   }));
   const ringStyle = useAnimatedStyle(() => ({ opacity: focus.value }));
 
@@ -47,7 +49,7 @@ export function PhotoPin({ source, selected, stacked, order }: PhotoPinProps) {
         {Array.from({ length: Math.min(stacked, 2) }, (_, index) => (
           <View
             key={index}
-            style={[styles.disc, styles.stackDisc, { transform: [{ translateX: 4 * (index + 1) }, { translateY: 4 * (index + 1) }] }]}
+            style={[styles.disc, styles.stackDisc, { transform: [{ translateX: 3 * (index + 1) }, { translateY: 3 * (index + 1) }] }]}
           />
         ))}
         <View style={styles.disc}>
@@ -60,30 +62,30 @@ export function PhotoPin({ source, selected, stacked, order }: PhotoPinProps) {
 }
 
 const styles = StyleSheet.create({
-  box: { width: SIZE + 34, height: SIZE + 34, alignItems: 'center', justifyContent: 'center' },
+  box: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
   // L'anneau orange du repère actif, collé au disque : ni décalé, ni flottant autour.
   ring: {
     position: 'absolute',
-    top: -5,
-    left: -5,
-    width: SIZE + 10,
-    height: SIZE + 10,
-    borderRadius: (SIZE + 10) / 2,
-    borderWidth: 4,
+    top: -4,
+    left: -4,
+    width: SIZE + 8,
+    height: SIZE + 8,
+    borderRadius: (SIZE + 8) / 2,
+    borderWidth: 3,
     borderColor: Palette.goBright,
   },
   disc: {
     width: SIZE,
     height: SIZE,
     borderRadius: SIZE / 2,
-    borderWidth: 3,
+    borderWidth: 2.5,
     borderColor: Palette.white,
     backgroundColor: Palette.blueDeep,
     overflow: 'hidden',
     shadowColor: Palette.black,
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
   stackDisc: { position: 'absolute', backgroundColor: Palette.white },
   photo: { width: '100%', height: '100%' },

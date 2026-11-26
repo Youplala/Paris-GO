@@ -73,8 +73,8 @@ function YearPill({ label, tone, unit }: { label: string; tone: 'archive' | 'tod
 /** La carte de la balade : image satellite, pointillé blanc de la marche, repères photo. */
 function RouteMap({ map, size, unit, onImageLoad }: { map: AlbumSlideMap; size: number; unit: number; onImageLoad?: () => void }) {
   const projected = map.route.map((point) => projectOnSquare(point, map.region, size));
-  const dots = dottedPath(projected, 7 * unit);
-  const pin = 38 * unit;
+  const dots = dottedPath(projected, 6 * unit);
+  const pin = 26 * unit;
   return (
     <View style={{ width: size, height: size }}>
       {map.snapshot ? (
@@ -88,7 +88,7 @@ function RouteMap({ map, size, unit, onImageLoad }: { map: AlbumSlideMap; size: 
           key={index}
           style={[
             styles.dot,
-            { left: dot.x - 1.8 * unit, top: dot.y - 1.8 * unit, width: 3.6 * unit, height: 3.6 * unit, borderRadius: 1.8 * unit },
+            { left: dot.x - 1.3 * unit, top: dot.y - 1.3 * unit, width: 2.6 * unit, height: 2.6 * unit, borderRadius: 1.3 * unit },
           ]}
         />
       ))}
@@ -99,7 +99,7 @@ function RouteMap({ map, size, unit, onImageLoad }: { map: AlbumSlideMap; size: 
             key={index}
             style={[
               styles.mapPin,
-              { left: x - pin / 2, top: y - pin / 2, width: pin, height: pin, borderRadius: pin / 2, borderWidth: 2.5 * unit },
+              { left: x - pin / 2, top: y - pin / 2, width: pin, height: pin, borderRadius: pin / 2, borderWidth: 2 * unit },
             ]}>
             <Image source={point.photo} style={StyleSheet.absoluteFill} contentFit="cover" onLoad={onImageLoad} onError={onImageLoad} />
           </View>
