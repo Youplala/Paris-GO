@@ -15,13 +15,12 @@ import {
   View,
 } from 'react-native';
 import MapView, { Marker, Polyline, type MapType } from 'react-native-maps';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PhotoPin } from '@/components/album/photo-pin';
 import { StepCarousel, type AlbumStep, type StepCarouselHandle } from '@/components/album/step-carousel';
+import { StepScrubber } from '@/components/album/step-scrubber';
 import { GlassButtonColumn, GlassIconButton } from '@/components/glass-icon-button';
-import { GlassSurface } from '@/components/glass-surface';
 import { Fonts, HitSize, Kicker, Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useAlbum } from '@/hooks/use-album';
 import { groupRouteStops, partialRoute, type RouteStep } from '@/services/album-route';
@@ -170,16 +169,7 @@ export function AlbumScreen() {
     setPlaying(true);
   };
 
-  const progress = useSharedValue(0);
-  useEffect(() => {
-    progress.value = withTiming(steps.length > 1 ? selected / (steps.length - 1) : 1, { duration: 450 });
-  }, [progress, selected, steps.length]);
   const trackWidth = width - Spacing.three * 2;
-  const chipWidth = 118;
-  const fillStyle = useAnimatedStyle(() => ({ width: Math.max(chipWidth / 2, progress.value * trackWidth) }));
-  const chipStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: Math.min(trackWidth - chipWidth, Math.max(0, progress.value * trackWidth - chipWidth / 2)) }],
-  }));
 
   const openCapture = (index: number) => {
     const capture = albumCaptures[index];
@@ -367,17 +357,13 @@ export function AlbumScreen() {
       </View>
 
       <View style={[styles.bottom, { paddingBottom: insets.bottom + Spacing.three }]} pointerEvents="box-none">
-        <View style={[styles.track, { width: trackWidth }]}>
-          <View style={styles.trackBackground} />
-          <Animated.View style={[styles.trackFill, fillStyle]} />
-          <Animated.View style={[styles.chip, { width: chipWidth }, chipStyle]}>
-            <GlassSurface variant="regular" tintColor="rgba(13, 42, 60, 0.55)" style={styles.chipGlass} />
-            <SymbolView name="figure.walk" size={14} tintColor={Palette.white} />
-            <Text style={styles.chipText}>
-              Étape {selected + 1}/{steps.length}
-            </Text>
-          </Animated.View>
-        </View>
+        <StepScrubber
+          count={steps.length}
+          index={selected}
+          width={trackWidth}
+          onScrubStart={() => setPlaying(false)}
+          onChange={(index) => selectStep(index)}
+        />
         <StepCarousel
           ref={carouselRef}
           steps={steps}
@@ -442,12 +428,6 @@ const styles = StyleSheet.create({
   summary: { marginTop: 2, color: 'rgba(255,255,255,0.88)', fontFamily: Fonts.sans, fontWeight: '600', fontSize: 13, lineHeight: 17, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 6 },
   rightColumn: { gap: Spacing.twoHalf, alignItems: 'center' },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, gap: Spacing.three },
-  track: { alignSelf: 'center', height: 34, justifyContent: 'center' },
-  trackBackground: { position: 'absolute', left: 0, right: 0, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.22)' },
-  trackFill: { position: 'absolute', left: 0, height: 6, borderRadius: 3, backgroundColor: Palette.goBright },
-  chip: { position: 'absolute', left: 0, height: 34, borderRadius: 17, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.35)' },
-  chipGlass: { borderRadius: 17 },
-  chipText: { color: Palette.white, fontFamily: Fonts.display, fontWeight: '800', fontSize: 15, lineHeight: 18 },
   renameRoot: { flex: 1, justifyContent: 'center', padding: Spacing.four, backgroundColor: 'rgba(8, 17, 22, 0.45)' },
   renameCard: { padding: Spacing.three, borderRadius: Radius.large, backgroundColor: Palette.fog, ...Shadow.card },
   renameKicker: { ...Kicker, color: Palette.go },

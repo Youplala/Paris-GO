@@ -77,7 +77,7 @@ it('ouvre la balade sur la carte : titre, chiffres, tracé, repères et une cart
   await render();
   expect(texts()).toEqual(expect.arrayContaining([
     'Mardi 14 juillet 2026', 'Balade du 14 juillet', '2 reprises · 1,0 km · 56 ans d’écart',
-    'Photo 2', 'Secteur 995 · 11:00', 'Secteur 995 · 12:30', 'Étape 1/2',
+    'Photo 2', 'Secteur 995 · 11:00', 'Secteur 995 · 12:30', '1/2',
   ]));
   // La carte se cadre sur toute la balade, puis le trait de la marche se dessine.
   expect(mockFit).toHaveBeenCalledWith(
@@ -105,7 +105,7 @@ it('rejoue la balade : la caméra vole d’étape en étape, 1970 puis aujourd�
     expect.objectContaining({ center: { latitude: 48.8656, longitude: 2.3522 } }),
     { duration: 1100 },
   );
-  expect(texts()).toContain('Étape 2/2');
+  expect(texts()).toContain('2/2');
   mockFit.mockClear();
   await act(async () => { jest.advanceTimersByTime(3700); });
   expect(mockFit).toHaveBeenCalled();

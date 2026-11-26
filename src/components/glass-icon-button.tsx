@@ -10,7 +10,7 @@ import { Palette } from '@/constants/theme';
  * Verre sombre posé sur la carte : `colorScheme` forcé en sombre pour que les boutons gardent la
  * même teinte au-dessus d'un toit clair comme d'une avenue sombre.
  */
-function DarkGlass({ radius, prominent }: { radius: number; prominent?: boolean }) {
+export function GlassBackdrop({ radius, prominent }: { radius: number; prominent?: boolean }) {
   if (!supportsLiquidGlass()) {
     return (
       <View
@@ -50,7 +50,7 @@ export function GlassIconButton({ systemImage, accessibilityLabel, onPress, prom
       hitSlop={6}
       onPress={onPress}
       style={({ pressed }) => [{ width: size, height: size }, styles.center, pressed && styles.pressed, style]}>
-      <DarkGlass radius={size / 2} prominent={prominent} />
+      <GlassBackdrop radius={size / 2} prominent={prominent} />
       <SymbolView name={systemImage} size={size * 0.4} weight="semibold" tintColor={Palette.white} />
     </Pressable>
   );
@@ -60,7 +60,7 @@ export function GlassIconButton({ systemImage, accessibilityLabel, onPress, prom
 export function GlassButtonColumn({ actions, size = 50 }: { actions: readonly IconAction[]; size?: number }) {
   return (
     <View style={[styles.column, { width: size, borderRadius: size / 2 }]}>
-      <DarkGlass radius={size / 2} />
+      <GlassBackdrop radius={size / 2} />
       {actions.map((action) => (
         <Pressable
           key={action.accessibilityLabel}
