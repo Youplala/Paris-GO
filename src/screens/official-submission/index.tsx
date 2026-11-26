@@ -215,7 +215,9 @@ function postalCodeFrom(value?: string, arrondissement?: string) {
 
 export function OfficialSubmissionScreen() {
   const router = useRouter();
-  const webViewRef = useRef<WebView>(null);
+  // react-native-webview 14.0.1 déclare `WebView<P = undefined>`, ce qui réduit ses props à `never` :
+  // `object` rétablit le type attendu, en attendant une version qui revienne à `P = {}`.
+  const webViewRef = useRef<WebView<object>>(null);
   const automaticPreparationKey = useRef<string | undefined>(undefined);
   const preparationGeneration = useRef(0);
   const latestPreparationRequest = useRef<OfficialPreparationRequest | undefined>(undefined);
@@ -823,7 +825,7 @@ export function OfficialSubmissionScreen() {
           </View>
         ) : (
           <>
-            <WebView
+            <WebView<object>
               key={webKey}
               ref={webViewRef}
               source={webSource}

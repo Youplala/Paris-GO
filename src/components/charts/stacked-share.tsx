@@ -14,7 +14,7 @@ const SPRING = { damping: 20, stiffness: 120, mass: 0.8 };
 
 function Segment({ share, total, index }: { share: Share; total: number; index: number }) {
   const target = total ? share.value / total : 0;
-  const grow = useDerivedValue(() => withDelay(index * 90, withSpring(target, SPRING)), [target, index]);
+  const grow = useDerivedValue(() => withDelay(index * 90, withSpring(target, SPRING)));
 
   const style = useAnimatedStyle(() => ({
     flexGrow: grow.value,

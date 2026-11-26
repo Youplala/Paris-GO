@@ -26,9 +26,8 @@ type RankRowProps = {
  */
 export function RankRow({ rank, label, count, max, unit, first, last, onPress }: RankRowProps) {
   const target = max ? count / max : 0;
-  const grow = useDerivedValue(
-    () => withDelay(Math.min(rank, 8) * 50, withSpring(target, SPRING)),
-    [target, rank],
+  const grow = useDerivedValue(() =>
+    withDelay(Math.min(rank, 8) * 50, withSpring(target, SPRING)),
   );
   const fillStyle = useAnimatedStyle(() => ({
     width: `${count ? Math.max(2, grow.value * 100) : 0}%`,

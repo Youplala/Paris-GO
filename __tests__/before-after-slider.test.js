@@ -2,7 +2,7 @@
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { Text } from 'react-native';
-import { GestureDetector } from 'react-native-gesture-handler';
+import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { BeforeAfterSlider } from '@/components/before-after-slider';
 
@@ -24,9 +24,10 @@ afterEach(async () => {
   if (renderer) await act(async () => renderer.unmount());
 });
 
-const comparison = (props = {}) => <BeforeAfterSlider
+// Gesture Handler 3 exige un GestureHandlerRootView au-dessus de chaque GestureDetector.
+const comparison = (props = {}) => <GestureHandlerRootView><BeforeAfterSlider
   before={before} after={after} beforeLabel="1970" afterLabel="2026"
-  showGestureHint {...props} />;
+  showGestureHint {...props} /></GestureHandlerRootView>;
 const photo = (uri) => renderer.root.findAll(node =>
   node.props.source?.uri === uri && typeof node.props.onLoad === 'function')[0];
 const text = () => renderer.root.findAllByType(Text).map(node => node.props.children).join(' ');

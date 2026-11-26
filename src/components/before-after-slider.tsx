@@ -136,7 +136,7 @@ export function BeforeAfterSlider({
   const ratio = useSharedValue(0.5);
   // Dérivé de la largeur mesurée : le React Compiler interdit de muter une valeur partagée
   // depuis un gestionnaire d'événement, et une dérivation exprime mieux la dépendance.
-  const containerWidth = useDerivedValue(() => resolvedWidth, [resolvedWidth]);
+  const containerWidth = useDerivedValue(() => resolvedWidth);
   const active = useSharedValue(0);
   // Mémorise le bord déjà atteint pour ne pas répéter le retour haptique à chaque frame.
   const edgeLatched = useSharedValue(0);
