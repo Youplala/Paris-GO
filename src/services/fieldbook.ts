@@ -81,6 +81,25 @@ async function copyToLibrary(uri: string) {
   return true;
 }
 
+/**
+ * Enregistre des images générées par l'app (les pages d'un album) dans Photos, avec la même
+ * permission add-only que les reprises. Renvoie le nombre d'images enregistrées.
+ */
+export async function saveImagesToLibrary(uris: readonly string[]) {
+  const MediaLibrary = loadMediaLibrary();
+  if (!MediaLibrary) return 0;
+
+  const permission = await MediaLibrary.requestPermissionsAsync(true, []);
+  if (!permission.granted) return 0;
+
+  let saved = 0;
+  for (const uri of uris) {
+    await MediaLibrary.saveToLibraryAsync(uri);
+    saved += 1;
+  }
+  return saved;
+}
+
 export type CaptureSaveOutcome = {
   capture: SavedCapture;
   savedToLibrary: boolean;

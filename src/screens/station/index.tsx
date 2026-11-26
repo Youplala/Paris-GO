@@ -38,7 +38,7 @@ import { PARIS_CENTER } from '@/data/archive';
 import { useBhvpImages } from '@/hooks/use-bhvp-images';
 import { useStationDetail } from '@/hooks/use-station-detail';
 import { archiveLinkForImage } from '@/services/bhvp-images';
-import { historicalReferenceForFrame } from '@/services/camera-reference';
+import { historicalReferenceForFrame, referenceUriOf } from '@/services/camera-reference';
 import { formatContributorName } from '@/utils/community-stats';
 import {
   contributorInitials,
@@ -77,6 +77,7 @@ export function StationScreen() {
   // 1970 / aujourd'hui : le choix suit l'utilisateur d'une photo refaite à l'autre.
   const [showRecapture, setShowRecapture] = useState(false);
   const [filmstripFilter, setFilmstripFilter] = useState<FilmstripFilter>('all');
+  const [brokenRecaptureUris, setBrokenRecaptureUris] = useState<string[]>([]);
   const isArchive = (detail?.kind ?? summary?.kind) === 'archive-1970';
   const { images: archiveImages, loading: archiveImagesLoading } = useBhvpImages(
     isArchive ? detail?.archiveLinks : undefined,
@@ -94,16 +95,21 @@ export function StationScreen() {
     : detail?.referenceMetadata;
   const selectedRecaptures = (selectedArchiveLink && detail?.archiveRecaptures?.[selectedArchiveLink]) || [];
   const latestRecapture = selectedRecaptures[0];
+  // Une reprise dont l'image n'existe plus chez l'Observatoire (404) ne propose pas de bascule.
+  const usableRecapture = (image: ImageSource | undefined) => {
+    const uri = referenceUriOf(image);
+    return uri && brokenRecaptureUris.includes(uri) ? undefined : image;
+  };
   const recaptureImageFor = (image: ImageSource | undefined) => {
     const link = archiveLinkForImage(image);
-    return link ? detail?.archiveRecaptures?.[link]?.[0]?.recaptureImage : undefined;
+    return usableRecapture(link ? detail?.archiveRecaptures?.[link]?.[0]?.recaptureImage : undefined);
   };
   const frameRecaptureCounts = isArchive ? images.map(image => {
     const link = archiveLinkForImage(image);
     return link ? detail?.archiveRecaptures?.[link]?.length ?? 0 : 0;
   }) : undefined;
   const recapturedFrameCount = frameRecaptureCounts?.filter((count) => count > 0).length ?? 0;
-  const selectedRecaptureImage = isArchive ? latestRecapture?.recaptureImage : undefined;
+  const selectedRecaptureImage = isArchive ? usableRecapture(latestRecapture?.recaptureImage) : undefined;
   const selectedRecaptureYear = latestRecapture?.recaptureDate?.slice(0, 4) || 'Auj.';
   const heroShowsRecapture = Boolean(showRecapture && selectedRecaptureImage);
   // Un carré de 1970 couvre une maille de 250 m : on trace son emprise réelle plutôt qu'un point.
@@ -424,6 +430,10 @@ export function StationScreen() {
                         style={StyleSheet.absoluteFill}
                         contentFit="cover"
                         transition={220}
+                        onError={() => {
+                          const uri = referenceUriOf(recapture);
+                          if (uri) setBrokenRecaptureUris((current) => current.includes(uri) ? current : [...current, uri]);
+                        }}
                       />
                       <View style={styles.heroShade} />
                     </Pressable>
@@ -587,8 +597,9 @@ export function StationScreen() {
                             </View>
                           ) : null}
                           <Text style={styles.recaptureRowAuthor} numberOfLines={1}>
-                            {[author ?? 'Contributeur·rice', month].filter(Boolean).join(' · ')}
+                            {author ?? 'Contributeur·rice'}
                           </Text>
+                          {month ? <Text style={styles.recaptureRowDate}>{month}</Text> : null}
                         </View>
                         <Text style={styles.recaptureRowAction}>Voir la reprise</Text>
                         <SymbolView name="arrow.right" size={13} tintColor={Palette.go} />
@@ -996,6 +1007,7 @@ const styles = StyleSheet.create({
   recaptureDoneLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   recaptureDoneText: { ...Typography.caption, color: Palette.lichen, fontFamily: Fonts.sans, fontWeight: '700' },
   recaptureRowAuthor: { ...Typography.body, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
+  recaptureRowDate: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   recaptureRowAction: { ...Typography.caption, color: Palette.go, fontFamily: Fonts.sans, fontWeight: '700' },
   screen: {
     flex: 1,

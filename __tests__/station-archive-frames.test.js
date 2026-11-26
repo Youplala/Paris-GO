@@ -84,7 +84,7 @@ it('le filtre « Refaites » mène à la photo refaite, que la bascule montre en
 
   expect(texts()).toContain('Secteur 995 · Photo 2');
   expect(texts()).not.toContain('À retrouver');
-  expect(texts()).toEqual(expect.arrayContaining(['Refaite', 'Camille D. · mars 2026', 'Léa M. · mai 2026']));
+  expect(texts()).toEqual(expect.arrayContaining(['Refaite', 'Camille D.', 'mars 2026', 'Léa M.', 'mai 2026']));
   expect(heroSources()).toContain('https://example.test/1970-2.jpg');
 
   await act(async () => byLabel('Voir la photo refaite en 2026').props.onPress());
@@ -101,4 +101,17 @@ it('chaque reprise de la photo ouvre sa propre fiche', async () => {
   await act(async () => byLabel('Montrer seulement les photos refaites').props.onPress());
   await act(async () => byLabel('Refaite par Léa M. en mai 2026. Voir la reprise').props.onPress());
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/station/[id]', params: { id: 'reprise-2-Léa Martin' } });
+});
+
+it('une reprise dont l’image est introuvable ne propose plus la bascule 2026', async () => {
+  await act(async () => { renderer = create(<StationScreen />); });
+  await act(async () => byLabel('Montrer seulement les photos refaites').props.onPress());
+  await act(async () => byLabel('Voir la photo refaite en 2026').props.onPress());
+  const broken = renderer.root.find((node) =>
+    node.props.transition === 220 && node.props.source?.uri === 'https://example.test/2026-2.jpg'
+    && typeof node.props.onError === 'function');
+  await act(async () => broken.props.onError());
+  expect(queryLabel('Voir la photo refaite en 2026')).toHaveLength(0);
+  expect(heroSources()).toContain('https://example.test/1970-2.jpg');
+  expect(texts()).toContain('Camille D.');
 });

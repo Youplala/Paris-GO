@@ -66,6 +66,7 @@
     "preset": "jest-expo",
     "testPathIgnorePatterns": [
       "/node_modules/",
+      "/__tests__/album-fixtures.js",
       "/ios/",
       "/android/"
     ]

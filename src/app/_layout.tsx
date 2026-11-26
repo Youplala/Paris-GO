@@ -84,6 +84,19 @@ export default function RootLayout() {
                   name="fieldbook"
                   options={{ presentation: 'modal', sheetGrabberVisible: true }}
                 />
+                <Stack.Screen
+                  name="album/[id]"
+                  options={{ presentation: 'fullScreenModal', animation: 'fade' }}
+                />
+                <Stack.Screen
+                  name="album-share/[id]"
+                  options={{
+                    presentation: 'formSheet',
+                    sheetAllowedDetents: [0.94],
+                    sheetCornerRadius: 34,
+                    sheetGrabberVisible: false,
+                  }}
+                />
                 <Stack.Screen name="contributor/[name]" />
                 <Stack.Screen name="station/[id]" />
                 <Stack.Screen

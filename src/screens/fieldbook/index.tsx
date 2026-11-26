@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AlbumCard } from '@/components/album-card';
 import {
   Fonts,
   HitSize,
@@ -25,6 +26,9 @@ import {
   Spacing,
   Typography,
 } from '@/constants/theme';
+import { albumTitleStore } from '@/services/album-title-store';
+import type { AlbumTitles } from '@/services/album-titles';
+import { defaultAlbumTitle, groupCapturesIntoAlbums } from '@/services/albums';
 import { deleteCapture, getSavedCaptures, type SavedCapture } from '@/services/fieldbook';
 import { getFieldbookViewState } from '@/services/fieldbook-view-state';
 
@@ -40,11 +44,15 @@ export function FieldbookScreen() {
   const [captures, setCaptures] = useState<SavedCapture[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
+  const [albumTitles, setAlbumTitles] = useState<AlbumTitles>({});
+  // Les balades d'abord : c'est la façon la plus parlante de relire son carnet.
+  const [view, setView] = useState<'albums' | 'photos'>('albums');
 
   const load = useCallback(async () => {
     setError(undefined);
     try {
       setCaptures(await getSavedCaptures());
+      setAlbumTitles(await albumTitleStore.list().catch(() => ({})));
     } catch {
       setError('Le carnet n’a pas pu être ouvert. Réessayez.');
     } finally {
@@ -134,6 +142,8 @@ export function FieldbookScreen() {
   };
 
   const state = getFieldbookViewState(captures);
+  const albums = useMemo(() => groupCapturesIntoAlbums(captures), [captures]);
+  const showAlbums = view === 'albums' && albums.length > 0;
 
   return (
     <View style={styles.screen}>
@@ -180,6 +190,42 @@ export function FieldbookScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.list}>
+          {albums.length > 0 ? (
+            <View accessibilityRole="tablist" style={styles.segment}>
+              {([
+                ['albums', `Balades · ${albums.length}`],
+                ['photos', `Photos · ${state.count}`],
+              ] as const).map(([key, label]) => {
+                const active = view === key;
+                return (
+                  <Pressable
+                    key={key}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: active }}
+                    onPress={() => setView(key)}
+                    style={[styles.segmentItem, active && styles.segmentItemActive]}>
+                    <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
+          {showAlbums ? (
+            <>
+              <Text style={styles.count}>
+                Une balade par jour de reprises, à relire et à partager.
+              </Text>
+              {albums.map((album) => (
+                <AlbumCard
+                  key={album.id}
+                  album={album}
+                  title={albumTitles[album.id] ?? defaultAlbumTitle(album)}
+                  onPress={() => router.push({ pathname: '/album/[id]', params: { id: album.id } })}
+                />
+              ))}
+            </>
+          ) : (
+          <>
           <Text style={styles.count}>
             {state.count} {state.count > 1 ? 'reprises conservées' : 'reprise conservée'} sur cet appareil
           </Text>
@@ -234,6 +280,8 @@ export function FieldbookScreen() {
               </View>
             </View>
           ))}
+          </>
+          )}
         </ScrollView>
       )}
     </View>
@@ -270,6 +318,11 @@ const styles = StyleSheet.create({
   retry: { marginTop: Spacing.four, minHeight: 52, paddingHorizontal: Spacing.four, borderRadius: Radius.pill, backgroundColor: Palette.go, alignItems: 'center', justifyContent: 'center' },
   retryText: { ...Typography.body, color: Palette.white, fontFamily: Fonts.sans, fontWeight: '700' },
   list: { padding: Spacing.three, paddingBottom: Spacing.five },
+  segment: { flexDirection: 'row', padding: 3, marginBottom: Spacing.three, borderRadius: Radius.pill, backgroundColor: Palette.blueMist },
+  segmentItem: { flex: 1, minHeight: 36, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
+  segmentItemActive: { backgroundColor: Palette.white, ...Shadow.card },
+  segmentText: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '700' },
+  segmentTextActive: { color: Palette.ink },
   count: { ...Typography.caption, marginBottom: Spacing.three, color: Palette.inkSoft, fontFamily: Fonts.sans },
   card: { marginBottom: Spacing.three, borderRadius: Radius.large, backgroundColor: Palette.white, overflow: 'hidden', ...Shadow.card },
   thumbnail: { width: '100%', height: 210, backgroundColor: Palette.blueMist },
