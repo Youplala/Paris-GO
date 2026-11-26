@@ -18,6 +18,7 @@ import {
   Text,
   useWindowDimensions,
   View,
+  type ViewInstance,
 } from 'react-native';
 import MapView, { Circle, Marker, Polygon } from 'react-native-maps';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -65,7 +66,7 @@ export function StationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { detail, summary, loading } = useStationDetail(id);
   const heroPagerRef = useRef<FlatList<ImageSource>>(null);
-  const shareCardRef = useRef<View>(null);
+  const shareCardRef = useRef<ViewInstance>(null);
   const archiveCount = detail?.archiveLinks.length || summary?.frameCount || 0;
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [comparisonViewerVisible, setComparisonViewerVisible] = useState(false);

@@ -8,17 +8,22 @@
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
+        "image": "macos-tahoe-26.6-xcode-27.2",
         "simulator": true
       }
     },
     "preview": {
       "distribution": "internal",
       "ios": {
+        "image": "macos-tahoe-26.6-xcode-27.2",
         "simulator": false
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "ios": {
+        "image": "macos-tahoe-26.6-xcode-27.2"
+      }
     }
   },
   "submit": {

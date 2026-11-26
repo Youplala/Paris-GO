@@ -80,15 +80,7 @@
         }
       ],
       "expo-sharing",
-      "expo-image",
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "enableSceneSupport": true
-          }
-        }
-      ]
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,

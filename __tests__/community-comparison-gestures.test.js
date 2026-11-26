@@ -1,6 +1,7 @@
 /* global jest, afterEach, it, expect */
 import React from 'react';
 import { act, create } from 'react-test-renderer';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { BeforeAfterSlider } from '@/components/before-after-slider';
 import { CollectiveScreen } from '@/screens/collective';
@@ -43,7 +44,10 @@ it.each([
   ['le fil Communauté', CollectiveScreen],
   ['le profil contributeur', ContributorScreen],
 ])('sépare la comparaison du bouton de légende dans %s', async (_, Screen) => {
-  await act(async () => { renderer = create(<Screen />); });
+  // Gesture Handler 3 exige un GestureHandlerRootView au-dessus de chaque GestureDetector.
+  await act(async () => {
+    renderer = create(<GestureHandlerRootView><Screen /></GestureHandlerRootView>);
+  });
   const slider = renderer.root.findByType(BeforeAfterSlider);
   // Un Pressable englobant peut recevoir le relâchement d’un glissé natif.
   for (let ancestor = slider.parent; ancestor; ancestor = ancestor.parent) {

@@ -42,9 +42,8 @@ export function AnimatedNumber({
   suffix = '',
   style,
 }: AnimatedNumberProps) {
-  const animated = useDerivedValue(
-    () => withTiming(value, { duration, easing: Easing.out(Easing.cubic) }),
-    [value, duration],
+  const animated = useDerivedValue(() =>
+    withTiming(value, { duration, easing: Easing.out(Easing.cubic) }),
   );
 
   const animatedProps = useAnimatedProps(() => ({
