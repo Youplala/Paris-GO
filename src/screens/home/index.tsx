@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -16,6 +17,7 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Illustrations } from '@/constants/illustrations';
 import { AlbumCoverCard } from '@/components/album-cover-card';
 import { MissionCard } from '@/components/mission-card';
 import { ProgressBar } from '@/components/progress-bar';
@@ -179,10 +181,14 @@ export function HomeScreen() {
             }}
             style={({ pressed }) => [styles.progress, pressed && styles.pressedSoft]}>
             <View style={styles.progressHead}>
-              <Text style={styles.progressLabel}>Paris refait à</Text>
-              <View style={styles.progressValueRow}>
-                <Text style={styles.progressValue}>{percentageLabel} %</Text>
-                <SymbolView name="chevron.right" size={13} tintColor={Palette.inkSoft} />
+              <Image source={Illustrations.parisProgress} style={styles.progressIllustration} contentFit="contain" />
+              <View style={styles.progressHeadCopy}>
+                <Text style={styles.progressLabel}>Paris refait à</Text>
+                <View style={styles.progressValueRow}>
+                  <Text style={styles.progressValue}>{percentageLabel} %</Text>
+                  <SymbolView name="chevron.right" size={13} tintColor={Palette.inkSoft} />
+                </View>
+                <Text style={styles.progressHint}>Chaque photo refaite pose une pièce du puzzle.</Text>
               </View>
             </View>
             <ProgressBar percentage={coverage.percentage} height={10} />
@@ -394,9 +400,12 @@ const styles = StyleSheet.create({
   },
   progressHead: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: Spacing.twoHalf,
   },
+  progressHeadCopy: { flex: 1 },
+  progressIllustration: { width: 88, height: 88, borderRadius: Radius.medium },
+  progressHint: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   progressLabel: {
     ...Typography.body,
     color: Palette.inkSoft,

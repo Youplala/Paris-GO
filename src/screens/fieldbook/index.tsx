@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Illustrations } from '@/constants/illustrations';
 import { AlbumCoverCard } from '@/components/album-cover-card';
 import {
   Fonts,
@@ -217,9 +218,7 @@ export function FieldbookScreen() {
         </View>
       ) : state.kind === 'empty' ? (
         <View style={styles.center}>
-          <View style={styles.emptyIcon}>
-            <SymbolView name="book.closed.fill" size={31} tintColor={Palette.go} />
-          </View>
+          <Image source={Illustrations.emptyFieldbook} style={styles.emptyIllustration} contentFit="contain" />
           <Text style={styles.emptyTitle}>{state.title}</Text>
           <Text style={styles.emptyCopy}>{state.description}</Text>
           <Pressable onPress={() => router.replace('/map')} style={styles.retry}>
@@ -348,7 +347,7 @@ const styles = StyleSheet.create({
   },
   center: { flex: 1, padding: Spacing.four, alignItems: 'center', justifyContent: 'center' },
   status: { ...Typography.caption, marginTop: Spacing.two, color: Palette.inkSoft, fontFamily: Fonts.sans },
-  emptyIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: Palette.goSoft, alignItems: 'center', justifyContent: 'center' },
+  emptyIllustration: { width: 240, height: 240, borderRadius: Radius.large },
   emptyTitle: { ...Typography.display, marginTop: Spacing.three, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
   emptyCopy: { ...Typography.body, marginTop: Spacing.two, maxWidth: 300, textAlign: 'center', color: Palette.inkSoft, fontFamily: Fonts.sans },
   retry: { marginTop: Spacing.four, minHeight: 52, paddingHorizontal: Spacing.four, borderRadius: Radius.pill, backgroundColor: Palette.go, alignItems: 'center', justifyContent: 'center' },

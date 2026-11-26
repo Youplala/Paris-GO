@@ -16,6 +16,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import { Illustrations } from '@/constants/illustrations';
 import { Fonts, Kicker, Palette, Spacing } from '@/constants/theme';
 
 type CaptureCelebrationProps = {
@@ -98,6 +99,7 @@ export function CaptureCelebration({ before, after, fromYear, toYear, place, onD
   const titleIn = useSharedValue(0);
   const exit = useSharedValue(0);
   const flash = useSharedValue(0);
+  const stamp = useSharedValue(0);
   const [year, setYear] = useState(fromYear);
   // La séquence attend que les deux photos soient affichables : un trait de lumière sur du noir
   // ne raconte rien. Au-delà de trois secondes, elle part quand même.
@@ -123,6 +125,7 @@ export function CaptureCelebration({ before, after, fromYear, toYear, place, onD
     if (reducedMotion) {
       reveal.set(withTiming(1, { duration: 500 }));
       titleIn.set(withDelay(300, withTiming(1, { duration: 300 })));
+      stamp.set(withDelay(300, withTiming(1, { duration: 300 })));
       exit.set(withDelay(1600, withTiming(1, { duration: 350 }, (done) => { if (done) runOnJS(finish)(); })));
       return;
     }
@@ -132,6 +135,8 @@ export function CaptureCelebration({ before, after, fromYear, toYear, place, onD
     // Un éclair bref quand la photo d'aujourd'hui est entièrement révélée, comme un flash.
     flash.set(withDelay(BURST_AT - 40, withSequence(withTiming(0.55, { duration: 90 }), withTiming(0, { duration: 420 }))));
     titleIn.set(withDelay(BURST_AT - 60, withSpring(1, { damping: 11, stiffness: 140 })));
+    // Le coup de tampon : il tombe de haut, s'écrase et rebondit à peine, comme sur un carnet.
+    stamp.set(withDelay(BURST_AT + 420, withSpring(1, { damping: 9, stiffness: 220, mass: 0.6 })));
     exit.set(withDelay(EXIT_AT, withTiming(1, { duration: 450, easing: Easing.in(Easing.quad) }, (done) => {
       if (done) runOnJS(finish)();
     })));
@@ -163,6 +168,17 @@ export function CaptureCelebration({ before, after, fromYear, toYear, place, onD
     transform: [{ translateY: (1 - titleIn.get()) * 24 }, { scale: 0.85 + titleIn.get() * 0.15 }],
   }));
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.get() }));
+  const stampStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(1, stamp.get() * 2),
+    transform: [{ scale: 2.4 - stamp.get() * 1.4 }, { rotate: '-12deg' }],
+  }));
+  const stampLanded = () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+  useAnimatedReaction(
+    () => stamp.get() > 0.95,
+    (landed, previous) => {
+      if (landed && !previous) runOnJS(stampLanded)();
+    },
+  );
   const rootStyle = useAnimatedStyle(() => ({
     opacity: 1 - exit.get(),
     transform: [{ scale: 1 + exit.get() * 0.06 }],
@@ -202,6 +218,9 @@ export function CaptureCelebration({ before, after, fromYear, toYear, place, onD
             <Confetti key={index} particle={particle} burst={burst} />
           ))}
         </View>
+        <Animated.View pointerEvents="none" style={[styles.stamp, { top: height * 0.16 }, stampStyle]}>
+          <Image source={Illustrations.refaitStamp} style={StyleSheet.absoluteFill} contentFit="contain" />
+        </Animated.View>
         <View pointerEvents="none" style={styles.copy}>
           <Animated.Text style={[styles.year, yearStyle]}>{year}</Animated.Text>
           <Animated.View style={titleStyle}>
@@ -236,6 +255,7 @@ const styles = StyleSheet.create({
   burstOrigin: { position: 'absolute', left: '50%', width: 0, height: 0 },
   particle: { position: 'absolute' },
   flash: { backgroundColor: Palette.white },
+  stamp: { position: 'absolute', right: Spacing.four, width: 150, height: 150 },
   copy: { position: 'absolute', left: Spacing.four, right: Spacing.four, bottom: 96, alignItems: 'center' },
   year: {
     color: Palette.white,

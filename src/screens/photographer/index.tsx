@@ -8,6 +8,7 @@ import MapView, { Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProgressBar } from '@/components/progress-bar';
+import { Illustrations } from '@/constants/illustrations';
 import { Fonts, HitSize, Kicker, Palette, Radius, Shadow, Spacing, Stat, Typography } from '@/constants/theme';
 import { useBhvpImages } from '@/hooks/use-bhvp-images';
 import { useStations } from '@/providers/stations-provider';
@@ -173,11 +174,20 @@ export function PhotographerScreen() {
               </Text>
             </View>
             <ProgressBar percentage={(profile.recapturedCount / Math.max(1, profile.photoCount)) * 100} height={8} />
-            <Text style={styles.cardCopy}>
-              {profile.recapturedCount
-                ? `${profile.recapturedCount} sur ${profile.photoCount} ont été refaites au même endroit.`
-                : 'Aucune n’a encore été refaite : à vous de retrouver ses points de vue.'}
-            </Text>
+            <View style={styles.badgeRow}>
+              <Image
+                source={Illustrations.photographerBadge}
+                style={[styles.badge, profile.recapturedCount < profile.photoCount && styles.badgeLocked]}
+                contentFit="contain"
+              />
+              <Text style={[styles.cardCopy, styles.badgeCopy]}>
+                {profile.recapturedCount >= profile.photoCount
+                  ? 'Badge débloqué : toutes ses photos ont été refaites !'
+                  : profile.recapturedCount
+                    ? `${profile.recapturedCount} sur ${profile.photoCount} refaites. Encore ${profile.photoCount - profile.recapturedCount} pour débloquer son badge.`
+                    : 'Aucune n’a encore été refaite : à vous de retrouver ses points de vue.'}
+              </Text>
+            </View>
           </View>
 
           {region ? (
@@ -282,6 +292,10 @@ const styles = StyleSheet.create({
   progressHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: Spacing.two },
   cardTitle: { ...Typography.body, flex: 1, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
   progressValue: { ...Typography.title, color: Palette.go, fontFamily: Fonts.display, fontWeight: '800' },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.twoHalf },
+  badge: { width: 64, height: 64, borderRadius: Radius.small },
+  badgeCopy: { flex: 1 },
+  badgeLocked: { opacity: 0.35 },
   cardCopy: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   mapWrap: { marginTop: Spacing.three, height: 190, borderRadius: Radius.large, overflow: 'hidden', backgroundColor: Palette.blueMist },
   mapDot: { minWidth: 26, height: 26, paddingHorizontal: 5, borderRadius: 13, backgroundColor: Palette.copper, borderWidth: 2, borderColor: Palette.white, alignItems: 'center', justifyContent: 'center' },
