@@ -9,14 +9,15 @@ import {
   Share,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BeforeAfterSlider } from '@/components/before-after-slider';
+import { GlassIconButton } from '@/components/glass-icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { SIMULATED_CAMERA_IMAGE } from '@/constants/demo';
-import { Fonts, HitSize, Palette, Spacing, Typography } from '@/constants/theme';
+import { Fonts, Kicker, Palette, Radius, Spacing, Typography } from '@/constants/theme';
 import { useBhvpImages } from '@/hooks/use-bhvp-images';
 import { useStationDetail } from '@/hooks/use-station-detail';
 import {
@@ -25,10 +26,12 @@ import {
   validatedHistoricalReferenceUri,
 } from '@/services/camera-reference';
 import { saveCapture } from '@/services/fieldbook';
-import { getReviewStatusRows, type CaptureLocation } from '@/services/review-status';
+import type { CaptureLocation } from '@/services/review-status';
+import { formatContributorName } from '@/utils/community-stats';
 
 export function ReviewScreen() {
   const router = useRouter();
+  const { height: windowHeight } = useWindowDimensions();
   const {
     id,
     frame,
@@ -111,12 +114,6 @@ export function ReviewScreen() {
     (locationPrecision === 'precise' || locationPrecision === 'approximate')
       ? { latitude: latitudeValue, longitude: longitudeValue, precision: locationPrecision }
       : undefined;
-  const reviewStatusRows = getReviewStatusRows({
-    simulated: isSimulated,
-    location: captureLocation,
-    saved,
-    savedToLibrary: inLibrary,
-  });
 
   const save = async () => {
     setSaving(true);
@@ -182,113 +179,130 @@ export function ReviewScreen() {
       url: savedCaptureUri ?? uri,
     });
 
+  const archiveMetadata = isArchiveSector ? detail?.archiveMetadata[frameIndex] : detail?.referenceMetadata;
+  const placeTitle = isArchiveSector
+    ? `Secteur ${detail?.name ?? ''} · photo ${frameIndex + 1}`
+    : detail?.name ?? 'Point de vue';
+  const archiveAuthor = archiveMetadata?.author && !/non identifi/i.test(archiveMetadata.author)
+    ? formatContributorName(archiveMetadata.author)
+    : undefined;
+  const yearsApart = 2026 - (detail?.year ?? 1970);
+  // Des pastilles en langage courant : vert quand c'est bon, orange seulement s'il manque quelque chose.
+  const chips: { icon: 'location.fill' | 'location.slash.fill' | 'book.closed.fill' | 'photo.fill' | 'iphone'; label: string; tone: 'ok' | 'warn' | 'neutral' }[] = [
+    isSimulated
+      ? { icon: 'iphone', label: 'Mode démo', tone: 'neutral' }
+      : captureLocation
+        ? { icon: 'location.fill', label: 'Position enregistrée', tone: 'ok' }
+        : { icon: 'location.slash.fill', label: 'Position manquante', tone: 'warn' },
+    ...(saved ? [{ icon: 'book.closed.fill' as const, label: 'Dans le carnet', tone: 'ok' as const }] : []),
+    ...(saved && inLibrary ? [{ icon: 'photo.fill' as const, label: 'Dans Photos', tone: 'ok' as const }] : []),
+  ];
+  const step = saved ? 2 : 1;
+
   return (
     <View style={styles.screen}>
-      <SafeAreaView edges={['top']} style={styles.header}>
-        <Pressable
-          accessibilityLabel="Fermer"
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
-          <SymbolView name="xmark" size={17} tintColor={Palette.ink} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Vérifier la photo</Text>
-        <Pressable
-          accessibilityLabel="Partager"
-          onPress={share}
-          style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
-          <SymbolView name="square.and.arrow.up" size={17} tintColor={Palette.ink} />
-        </Pressable>
-      </SafeAreaView>
-
       <ScrollView
         scrollEnabled={!comparisonActive}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}>
-        {/* La comparaison est le sujet de l'écran : elle occupe toute la largeur, sans marge,
-            juste sous l'en-tête. Tout ce qui suit n'est que légende. */}
-        {referenceImage && currentImage ? (
-          <BeforeAfterSlider
-            before={referenceImage}
-            after={currentImage}
-            beforeLabel={String(detail?.year ?? 1970)}
-            afterLabel={isSimulated ? 'DÉMO' : '2026'}
-            borderRadius={0}
-            onInteractionChange={setComparisonActive}
-          />
-        ) : null}
+        {/* La comparaison est le sujet de l'écran : grande, bord à bord, les boutons posés dessus. */}
+        <View>
+          {referenceImage && currentImage ? (
+            <BeforeAfterSlider
+              before={referenceImage}
+              after={currentImage}
+              beforeLabel={String(detail?.year ?? 1970)}
+              afterLabel={isSimulated ? 'DÉMO' : '2026'}
+              borderRadius={0}
+              height={Math.round(windowHeight * 0.52)}
+              labelsPosition="bottom"
+              onInteractionChange={setComparisonActive}
+            />
+          ) : (
+            <View style={[styles.comparisonPlaceholder, { height: Math.round(windowHeight * 0.52) }]} />
+          )}
+          <View pointerEvents="box-none" style={styles.overlay}>
+            <GlassIconButton systemImage="xmark" accessibilityLabel="Fermer" onPress={() => router.back()} size={46} />
+            <GlassIconButton systemImage="square.and.arrow.up" accessibilityLabel="Partager" onPress={() => void share()} size={46} />
+          </View>
+        </View>
 
         <View style={styles.body}>
-          <Text style={styles.kicker}>{isSimulated ? 'APERÇU SIMULATEUR' : 'PHOTO TERMINÉE'}</Text>
-          <Text style={styles.title}>Le même lieu,{'\n'}deux époques.</Text>
-
-          {isSimulated ? (
-            <Text style={styles.noteText}>
-              Cette comparaison utilise une scène parisienne de démonstration. Sur un iPhone, la
-              moitié droite affichera la photo réellement prise.
-            </Text>
-          ) : null}
-
-          <Text style={styles.noteText}>
-            {saved && inLibrary
-              ? 'Votre photo est enregistrée dans Photos (Récents). Le formulaire officiel peut maintenant être préparé sans ressaisir la date ni la position.'
-              : 'Paris GO prépare le formulaire officiel, les deux images et les informations du point de vue. Vous gardez la main sur le règlement et l’envoi final.'}
+          <Text style={styles.kicker}>{isSimulated ? 'APERÇU' : `${yearsApart} ANS PLUS TARD`}</Text>
+          <Text accessibilityRole="header" style={styles.title}>
+            {isSimulated ? 'Voici l’aperçu.' : 'Bravo, c’est refait !'}
+          </Text>
+          <Text style={styles.place}>
+            {placeTitle}
+            {archiveAuthor ? ` · par ${archiveAuthor}` : ''}
           </Text>
 
-        <View style={styles.checklist}>
-          <Text style={styles.checklistKicker}>CONTRÔLE AVANT DÉPÔT</Text>
-          {reviewStatusRows.map(({ icon, title, copy }) => (
-            <View key={title} style={styles.checkRow}>
-              <SymbolView
-                name={icon as 'checkmark.circle.fill'}
-                size={21}
-                tintColor={
-                  icon.startsWith('check')
-                    ? Palette.lichen
-                    : icon.startsWith('info')
-                      ? Palette.parisBlue
-                      : Palette.copper
-                }
-              />
-              <View style={styles.checkCopy}>
-                <Text style={styles.checkTitle}>{title}</Text>
-                <Text style={styles.checkText}>{copy}</Text>
+          <View style={styles.chips}>
+            {chips.map((chip) => (
+              <View key={chip.label} style={[styles.chip, chip.tone === 'ok' ? styles.chipOk : chip.tone === 'warn' ? styles.chipWarn : styles.chipNeutral]}>
+                <SymbolView
+                  name={chip.icon}
+                  size={14}
+                  tintColor={chip.tone === 'ok' ? Palette.lichen : chip.tone === 'warn' ? Palette.go : Palette.parisBlue}
+                />
+                <Text style={[styles.chipText, chip.tone === 'warn' && styles.chipTextWarn]}>{chip.label}</Text>
               </View>
-            </View>
             ))}
           </View>
 
-          <PrimaryButton
-            label={saved ? (inLibrary ? 'Enregistrée dans vos photos' : 'Ajoutée au carnet') : 'Enregistrer ma photo'}
-            icon={saved ? 'checkmark' : 'bookmark'}
-            loading={saving}
-            disabled={saved}
-            onPress={save}
-          />
-          {/* Le bouton seul ne suffisait pas à faire comprendre que l'enregistrement avait eu lieu :
-              cette ligne confirme l'action à l'endroit même où l'utilisateur vient de taper. */}
+          {/* Deux étapes, toujours dans le même ordre : garder la photo, puis l'envoyer. */}
+          <View style={styles.steps} accessibilityRole="progressbar" accessibilityValue={{ min: 1, max: 2, now: step }}>
+            {['Garder ma photo', 'Envoyer à l’Observatoire'].map((label, index) => {
+              const done = index + 1 < step;
+              const current = index + 1 === step;
+              return (
+                <View key={label} style={styles.step}>
+                  <View style={[styles.stepDot, done && styles.stepDotDone, current && styles.stepDotCurrent]}>
+                    {done ? (
+                      <SymbolView name="checkmark" size={13} weight="bold" tintColor={Palette.white} />
+                    ) : (
+                      <Text style={[styles.stepNumber, current && styles.stepNumberCurrent]}>{index + 1}</Text>
+                    )}
+                  </View>
+                  <Text style={[styles.stepLabel, (current || done) && styles.stepLabelActive]}>{label}</Text>
+                </View>
+              );
+            })}
+          </View>
+
           {saved ? (
-            <View style={styles.saveConfirmation}>
-              <SymbolView name="checkmark.circle.fill" size={16} tintColor={Palette.lichen} />
-              <Text style={styles.saveConfirmationText}>
+            <>
+              <PrimaryButton
+                label="Envoyer à l’Observatoire"
+                icon="paperplane.fill"
+                onPress={openObservatoire}
+                style={styles.primary}
+              />
+              <Text style={styles.help}>
                 {isSimulated
                   ? 'Aperçu ajouté au carnet. Aucune photo créée en mode démo.'
                   : inLibrary
-                    ? 'Photo enregistrée dans Photos et dans le carnet.'
-                    : 'Photo conservée dans le carnet uniquement. La copie dans Photos n’a pas abouti.'}
+                    ? 'Votre photo est dans votre carnet et dans Photos (Récents). Le formulaire est prérempli : vous n’avez plus qu’à vérifier et envoyer.'
+                    : 'Votre photo est dans votre carnet. Le formulaire est prérempli : vous n’avez plus qu’à vérifier et envoyer.'}
               </Text>
-            </View>
-          ) : null}
+            </>
+          ) : (
+            <>
+              <PrimaryButton
+                label="Garder ma photo"
+                icon="checkmark"
+                loading={saving}
+                onPress={save}
+                style={styles.primary}
+              />
+              <Text style={styles.help}>Elle va dans votre carnet et dans vos Photos.</Text>
+            </>
+          )}
           {saveError ? <Text style={styles.saveError}>{saveError}</Text> : null}
-          <PrimaryButton
-            label="Préparer le dépôt officiel"
-            icon="lock.shield"
-            variant="outline"
-            onPress={openObservatoire}
-            style={styles.secondaryButton}
-          />
-          <Pressable onPress={() => router.replace('/collective')} style={styles.collectiveLink}>
-            <Text style={styles.collectiveText}>Voir les photos de la communauté</Text>
-            <SymbolView name="person.2.fill" size={16} tintColor={Palette.parisBlue} />
+
+          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.retake, pressed && styles.pressed]}>
+            <SymbolView name="camera.rotate" size={17} tintColor={Palette.parisBlue} />
+            <Text style={styles.retakeText}>Refaire la photo</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -297,130 +311,35 @@ export function ReviewScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Palette.fog,
-  },
-  header: {
-    minHeight: 56,
-    paddingHorizontal: Spacing.three,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Palette.line,
-  },
-  closeButton: {
-    width: HitSize,
-    height: HitSize,
-    borderRadius: HitSize / 2,
-    backgroundColor: Palette.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    ...Typography.body,
-    color: Palette.ink,
-    fontFamily: Fonts.sans,
-    fontWeight: '700',
-  },
-  content: {
-    paddingBottom: Spacing.five,
-  },
-  // Tout ce qui suit la comparaison vit dans cette colonne : la photo, elle, va bord à bord.
-  body: {
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.four,
-  },
-  kicker: {
-    ...Typography.caption,
-    color: Palette.copper,
-    fontFamily: Fonts.display,
-    fontWeight: '900',
-    letterSpacing: 0.6,
-  },
-  // Titre de l'écran : un seul niveau « display » par vue, jamais combiné à « title ».
-  title: {
-    ...Typography.display,
-    marginTop: Spacing.two,
-    color: Palette.ink,
-    fontFamily: Fonts.display,
-  },
-  noteText: {
-    ...Typography.body,
-    marginTop: Spacing.three,
-    color: Palette.inkSoft,
-    fontFamily: Fonts.sans,
-  },
-  checklist: {
-    marginTop: Spacing.four,
-    marginBottom: Spacing.four,
-    gap: Spacing.twoHalf,
-  },
-  checklistKicker: {
-    ...Typography.caption,
-    color: Palette.inkSoft,
-    fontFamily: Fonts.display,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  checkRow: {
-    flexDirection: 'row',
-    gap: Spacing.three,
-  },
-  checkCopy: {
-    flex: 1,
-  },
-  checkTitle: {
-    ...Typography.body,
-    color: Palette.ink,
-    fontFamily: Fonts.sans,
-    fontWeight: '700',
-  },
-  checkText: {
-    ...Typography.body,
-    marginTop: Spacing.half,
-    color: Palette.inkSoft,
-    fontFamily: Fonts.sans,
-  },
-  secondaryButton: {
-    marginTop: Spacing.two,
-  },
-  saveConfirmation: {
-    marginTop: Spacing.two,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.one,
-  },
-  saveConfirmationText: {
-    ...Typography.body,
-    color: Palette.lichen,
-    fontFamily: Fonts.sans,
-    fontWeight: '700',
-  },
-  saveError: {
-    ...Typography.body,
-    marginTop: Spacing.two,
-    color: Palette.copper,
-    fontFamily: Fonts.sans,
-  },
-  collectiveLink: {
-    minHeight: 50,
-    marginTop: Spacing.four,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
-  },
-  collectiveText: {
-    ...Typography.body,
-    color: Palette.parisBlue,
-    fontFamily: Fonts.sans,
-    fontWeight: '700',
-  },
-  pressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.96 }],
-  },
+  screen: { flex: 1, backgroundColor: Palette.fog },
+  content: { paddingBottom: Spacing.six },
+  comparisonPlaceholder: { backgroundColor: Palette.blueMist },
+  overlay: { position: 'absolute', top: Spacing.three, left: Spacing.three, right: Spacing.three, flexDirection: 'row', justifyContent: 'space-between' },
+  body: { paddingHorizontal: Spacing.four, paddingTop: Spacing.four },
+  kicker: { ...Kicker, color: Palette.go },
+  // Titre de l'écran : un seul niveau « display » par vue.
+  title: { ...Typography.display, marginTop: Spacing.one, fontSize: 34, lineHeight: 38, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
+  place: { ...Typography.body, marginTop: Spacing.one, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '600' },
+  chips: { marginTop: Spacing.three, flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.twoHalf, paddingVertical: 7, borderRadius: Radius.pill },
+  chipOk: { backgroundColor: 'rgba(79, 138, 107, 0.14)' },
+  chipWarn: { backgroundColor: Palette.goSoft },
+  chipNeutral: { backgroundColor: Palette.blueMist },
+  chipText: { ...Typography.caption, fontSize: 15, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
+  chipTextWarn: { color: Palette.go },
+  steps: { marginTop: Spacing.four, flexDirection: 'row', gap: Spacing.three },
+  step: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  stepDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: Palette.line, alignItems: 'center', justifyContent: 'center', backgroundColor: Palette.white },
+  stepDotCurrent: { borderColor: Palette.go, backgroundColor: Palette.go },
+  stepDotDone: { borderColor: Palette.lichen, backgroundColor: Palette.lichen },
+  stepNumber: { color: Palette.inkSoft, fontFamily: Fonts.display, fontWeight: '800', fontSize: 15, lineHeight: 18 },
+  stepNumberCurrent: { color: Palette.white },
+  stepLabel: { ...Typography.caption, flex: 1, fontSize: 15, lineHeight: 19, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '600' },
+  stepLabelActive: { color: Palette.ink, fontWeight: '700' },
+  primary: { marginTop: Spacing.three },
+  help: { ...Typography.body, marginTop: Spacing.twoHalf, color: Palette.inkSoft, fontFamily: Fonts.sans, textAlign: 'center' },
+  saveError: { ...Typography.body, marginTop: Spacing.two, color: Palette.go, fontFamily: Fonts.sans, fontWeight: '700', textAlign: 'center' },
+  retake: { minHeight: 52, marginTop: Spacing.three, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
+  retakeText: { ...Typography.body, color: Palette.parisBlue, fontFamily: Fonts.sans, fontWeight: '700' },
+  pressed: { opacity: 0.7 },
 });
