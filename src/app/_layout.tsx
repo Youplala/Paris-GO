@@ -98,6 +98,7 @@ export default function RootLayout() {
                   }}
                 />
                 <Stack.Screen name="contributor/[name]" />
+                <Stack.Screen name="photographer/[name]" />
                 <Stack.Screen name="station/[id]" />
                 <Stack.Screen
                   name="align/[id]"

@@ -1,3 +1,4 @@
+import { buildArchivePhotographer, type ArchivePhotographer } from '@/services/archive-photographers';
 import {
   createContext,
   PropsWithChildren,
@@ -47,6 +48,8 @@ type StationsContextValue = {
   findStation: (id: string) => StationSummary | undefined;
   findDetail: (id: string) => StationDetail | undefined;
   findContributorSubmissions: (name: string) => StationDetail[];
+  /** Profil d'un photographe de 1970 d'après les notices BHVP. */
+  findArchivePhotographer: (name: string) => ArchivePhotographer | undefined;
 };
 
 const StationsContext = createContext<StationsContextValue | null>(null);
@@ -129,6 +132,7 @@ export function StationsProvider({ children }: PropsWithChildren) {
       findDetail: (id: string) => buildStationDetail(snapshot, id),
       findContributorSubmissions: (name: string) =>
         buildContributorSubmissions(snapshot, name),
+      findArchivePhotographer: (name: string) => buildArchivePhotographer(snapshot, name),
     };
   }, [lastCheckedAt, refresh, refreshing, snapshot, syncError]);
 

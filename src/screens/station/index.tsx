@@ -62,12 +62,16 @@ export function StationScreen() {
   // La photo du haut remplit son cadre (recadrée, jamais de bande vide) ; le plein écran la
   // rend en entier. Un cadre presque carré ménage les photos en largeur comme en hauteur.
   const heroHeight = Math.round(Math.min(460, Math.max(360, screenWidth * 1.02)));
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // `frame` : ouvrir la pellicule sur une vue précise (depuis le profil d'un photographe).
+  const { id, frame } = useLocalSearchParams<{ id: string; frame?: string }>();
   const { detail, summary, loading } = useStationDetail(id);
   const heroPagerRef = useRef<FlatList<ImageSource>>(null);
   const shareCardRef = useRef<View>(null);
   const archiveCount = detail?.archiveLinks.length || summary?.frameCount || 0;
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState(() => {
+    const requested = Number.parseInt(frame ?? '', 10);
+    return Number.isInteger(requested) && requested >= 0 ? requested : 0;
+  });
   const [comparisonViewerVisible, setComparisonViewerVisible] = useState(false);
   const [comparisonViewerIndex, setComparisonViewerIndex] = useState(0);
   const [viewerVisible, setViewerVisible] = useState(false);
