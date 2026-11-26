@@ -3,19 +3,23 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useMemo, useState } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
+  ActionSheetIOS,
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   Share,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AlbumCard } from '@/components/album-card';
+import { AlbumCoverCard } from '@/components/album-cover-card';
 import {
   Fonts,
   HitSize,
@@ -24,23 +28,25 @@ import {
   Radius,
   Shadow,
   Spacing,
+  Stat,
   Typography,
 } from '@/constants/theme';
+import { useAlbumReferences } from '@/hooks/use-album-references';
 import { albumTitleStore } from '@/services/album-title-store';
 import type { AlbumTitles } from '@/services/album-titles';
-import { defaultAlbumTitle, groupCapturesIntoAlbums } from '@/services/albums';
+import { defaultAlbumTitle, formatWalkDistance, groupCapturesIntoAlbums, walkDistanceMeters } from '@/services/albums';
 import { deleteCapture, getSavedCaptures, type SavedCapture } from '@/services/fieldbook';
 import { getFieldbookViewState } from '@/services/fieldbook-view-state';
 
+const dateFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat('fr-FR', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value));
+  return dateFormat.format(new Date(value));
 }
 
 export function FieldbookScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const [captures, setCaptures] = useState<SavedCapture[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
@@ -144,21 +150,55 @@ export function FieldbookScreen() {
   const state = getFieldbookViewState(captures);
   const albums = useMemo(() => groupCapturesIntoAlbums(captures), [captures]);
   const showAlbums = view === 'albums' && albums.length > 0;
+  const totalDistance = formatWalkDistance(
+    albums.reduce((sum, album) => sum + walkDistanceMeters(album.captures.map((capture) => capture.coordinate)), 0),
+  );
+  const references = useAlbumReferences(captures);
+  const tileWidth = (width - Spacing.three * 2 - Spacing.twoHalf) / 2;
+
+  const openMenu = (capture: SavedCapture) => {
+    void Haptics.selectionAsync();
+    const actions = [
+      { label: 'Comparer avec la photo d’archive', run: () => compare(capture) },
+      { label: 'Reprendre le dépôt', run: () => resumeSubmission(capture) },
+      { label: 'Partager', run: () => void share(capture) },
+      { label: 'Supprimer', run: () => confirmDelete(capture), destructive: true },
+    ];
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          title: references.get(capture.id)?.label ?? capture.stationName,
+          options: [...actions.map((action) => action.label), 'Annuler'],
+          destructiveButtonIndex: 3,
+          cancelButtonIndex: actions.length,
+        },
+        (index) => actions[index]?.run(),
+      );
+      return;
+    }
+    Alert.alert(references.get(capture.id)?.label ?? 'Reprise', undefined, [
+      ...actions.map((action) => ({
+        text: action.label,
+        style: action.destructive ? ('destructive' as const) : ('default' as const),
+        onPress: action.run,
+      })),
+      { text: 'Annuler', style: 'cancel' as const },
+    ]);
+  };
 
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.header}>
+        <View style={styles.headerCopy}>
+          <Text style={styles.kicker}>VOS REPRISES</Text>
+          <Text accessibilityRole="header" style={styles.title}>Carnet</Text>
+        </View>
         <Pressable
           accessibilityLabel="Fermer le carnet"
           onPress={() => router.back()}
           style={({ pressed }) => [styles.close, pressed && styles.pressed]}>
-          <SymbolView name="xmark" size={17} tintColor={Palette.ink} />
+          <SymbolView name="xmark" size={16} weight="semibold" tintColor={Palette.ink} />
         </Pressable>
-        <View style={styles.headerCopy}>
-          <Text style={styles.kicker}>BROUILLONS LOCAUX</Text>
-          <Text style={styles.title}>Carnet</Text>
-        </View>
-        <View style={styles.headerSpacer} />
       </SafeAreaView>
 
       {loading ? (
@@ -187,9 +227,20 @@ export function FieldbookScreen() {
           </Pressable>
         </View>
       ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.list}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
+          <View style={styles.summary}>
+            {[
+              { value: String(albums.length), label: albums.length > 1 ? 'balades' : 'balade' },
+              { value: String(state.count), label: state.count > 1 ? 'reprises' : 'reprise' },
+              ...(totalDistance ? [{ value: totalDistance, label: 'à pied' }] : []),
+            ].map((item) => (
+              <View key={item.label} style={styles.summaryItem}>
+                <Text style={styles.summaryValue} adjustsFontSizeToFit numberOfLines={1}>{item.value}</Text>
+                <Text style={styles.summaryLabel}>{item.label}</Text>
+              </View>
+            ))}
+          </View>
+
           {albums.length > 0 ? (
             <View accessibilityRole="tablist" style={styles.segment}>
               {([
@@ -202,7 +253,10 @@ export function FieldbookScreen() {
                     key={key}
                     accessibilityRole="tab"
                     accessibilityState={{ selected: active }}
-                    onPress={() => setView(key)}
+                    onPress={() => {
+                      void Haptics.selectionAsync();
+                      setView(key);
+                    }}
                     style={[styles.segmentItem, active && styles.segmentItemActive]}>
                     <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{label}</Text>
                   </Pressable>
@@ -210,77 +264,59 @@ export function FieldbookScreen() {
               })}
             </View>
           ) : null}
+
           {showAlbums ? (
-            <>
-              <Text style={styles.count}>
-                Une balade par jour de reprises, à relire et à partager.
-              </Text>
+            <View style={styles.albums}>
               {albums.map((album) => (
-                <AlbumCard
+                <AlbumCoverCard
                   key={album.id}
                   album={album}
                   title={albumTitles[album.id] ?? defaultAlbumTitle(album)}
                   onPress={() => router.push({ pathname: '/album/[id]', params: { id: album.id } })}
                 />
               ))}
-            </>
-          ) : (
-          <>
-          <Text style={styles.count}>
-            {state.count} {state.count > 1 ? 'reprises conservées' : 'reprise conservée'} sur cet appareil
-          </Text>
-          {state.captures.map((capture) => (
-            <View key={capture.id} style={styles.card}>
-              {capture.imageUri ? (
-                <Image source={{ uri: capture.imageUri }} contentFit="cover" style={styles.thumbnail} />
-              ) : (
-                <View style={[styles.thumbnail, styles.simulatedThumbnail]}>
-                  <SymbolView name="iphone.gen3" size={28} tintColor={Palette.parisBlue} />
-                  <Text style={styles.simulatedLabel}>DÉMO</Text>
-                </View>
-              )}
-              <View style={styles.cardBody}>
-                <Text style={styles.cardKicker}>{formatDate(capture.createdAt)}</Text>
-                <Text style={styles.cardTitle} numberOfLines={2}>
-                  {capture.stationName ?? `Point ${capture.stationId}`}
-                </Text>
-                <Text style={styles.cardMeta} numberOfLines={2}>
-                  {capture.stationAddress ?? (capture.coordinate ? 'Position enregistrée' : 'Position non enregistrée')}
-                </Text>
-                <View style={styles.preparationRow}>
-                  <SymbolView
-                    name={capture.preparation.current.ready ? 'checkmark.circle.fill' : 'circle'}
-                    size={14}
-                    tintColor={capture.preparation.current.ready ? Palette.lichen : Palette.inkSoft}
-                  />
-                  <Text style={styles.preparationText}>
-                    Dépôt : {capture.preparation.current.ready ? 'photo prête' : 'à préparer'}
-                  </Text>
-                </View>
-              </View>
-              <Pressable
-                accessibilityLabel="Supprimer le brouillon"
-                onPress={() => confirmDelete(capture)}
-                style={({ pressed }) => [styles.delete, pressed && styles.pressed]}>
-                <SymbolView name="trash" size={16} tintColor={Palette.copper} />
-              </Pressable>
-              <View style={styles.actions}>
-                <Pressable onPress={() => compare(capture)} style={styles.action}>
-                  <SymbolView name="rectangle.split.2x1" size={15} tintColor={Palette.parisBlue} />
-                  <Text style={styles.actionText}>Comparer</Text>
-                </Pressable>
-                <Pressable onPress={() => void share(capture)} style={styles.action}>
-                  <SymbolView name="square.and.arrow.up" size={15} tintColor={Palette.parisBlue} />
-                  <Text style={styles.actionText}>Partager</Text>
-                </Pressable>
-                <Pressable onPress={() => resumeSubmission(capture)} style={styles.primaryAction}>
-                  <Text style={styles.primaryActionText}>Reprendre le dépôt</Text>
-                  <SymbolView name="arrow.right" size={14} tintColor={Palette.white} />
-                </Pressable>
-              </View>
+              <Text style={styles.footnote}>
+                Une balade par jour de reprises. Tout reste sur cet appareil jusqu’à ce que vous le partagiez.
+              </Text>
             </View>
-          ))}
-          </>
+          ) : (
+            <View style={styles.grid}>
+              {state.captures.map((capture) => {
+                const reference = references.get(capture.id);
+                const ready = capture.preparation.current.ready;
+                return (
+                  <Pressable
+                    key={capture.id}
+                    accessibilityHint="Ouvre les actions de cette reprise"
+                    accessibilityLabel={`${reference?.label ?? capture.stationName ?? 'Reprise'}, ${formatDate(capture.createdAt)}, dépôt ${ready ? 'prêt' : 'à préparer'}`}
+                    accessibilityRole="button"
+                    onPress={() => openMenu(capture)}
+                    style={({ pressed }) => [styles.tile, { width: tileWidth }, pressed && styles.tilePressed]}>
+                    <View style={[styles.tilePhoto, { height: tileWidth * 1.15 }]}>
+                      {capture.imageUri ? (
+                        <Image source={{ uri: capture.imageUri }} contentFit="cover" style={StyleSheet.absoluteFill} transition={200} />
+                      ) : (
+                        <View style={[StyleSheet.absoluteFill, styles.simulatedThumbnail]}>
+                          <SymbolView name="iphone.gen3" size={24} tintColor={Palette.parisBlue} />
+                          <Text style={styles.simulatedLabel}>DÉMO</Text>
+                        </View>
+                      )}
+                      {reference?.image ? (
+                        <View style={styles.tileInset}>
+                          <Image source={reference.image} contentFit="cover" style={StyleSheet.absoluteFill} />
+                        </View>
+                      ) : null}
+                      <View style={[styles.tileStatus, ready ? styles.tileStatusReady : styles.tileStatusTodo]}>
+                        <SymbolView name={ready ? 'checkmark' : 'arrow.up'} size={10} weight="bold" tintColor={Palette.white} />
+                        <Text style={styles.tileStatusText}>{ready ? 'Prête' : 'À déposer'}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.tileTitle} numberOfLines={1}>{reference?.label ?? capture.stationName ?? `Point ${capture.stationId}`}</Text>
+                    <Text style={styles.tileMeta} numberOfLines={1}>{formatDate(capture.createdAt)}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           )}
         </ScrollView>
       )}
@@ -291,25 +327,25 @@ export function FieldbookScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Palette.fog },
   header: {
-    minHeight: 78,
     paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.two,
     flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Palette.line,
+    alignItems: 'flex-end',
   },
+  headerCopy: { flex: 1 },
+  kicker: { ...Kicker, color: Palette.go },
+  title: { ...Typography.display, fontSize: 36, lineHeight: 40, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
   close: {
     width: HitSize,
     height: HitSize,
+    marginBottom: 2,
     borderRadius: HitSize / 2,
     backgroundColor: Palette.white,
     alignItems: 'center',
     justifyContent: 'center',
+    ...Shadow.card,
   },
-  headerCopy: { flex: 1, alignItems: 'center' },
-  headerSpacer: { width: HitSize },
-  kicker: { ...Kicker, color: Palette.go },
-  title: { ...Typography.title, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
   center: { flex: 1, padding: Spacing.four, alignItems: 'center', justifyContent: 'center' },
   status: { ...Typography.caption, marginTop: Spacing.two, color: Palette.inkSoft, fontFamily: Fonts.sans },
   emptyIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: Palette.goSoft, alignItems: 'center', justifyContent: 'center' },
@@ -317,28 +353,30 @@ const styles = StyleSheet.create({
   emptyCopy: { ...Typography.body, marginTop: Spacing.two, maxWidth: 300, textAlign: 'center', color: Palette.inkSoft, fontFamily: Fonts.sans },
   retry: { marginTop: Spacing.four, minHeight: 52, paddingHorizontal: Spacing.four, borderRadius: Radius.pill, backgroundColor: Palette.go, alignItems: 'center', justifyContent: 'center' },
   retryText: { ...Typography.body, color: Palette.white, fontFamily: Fonts.sans, fontWeight: '700' },
-  list: { padding: Spacing.three, paddingBottom: Spacing.five },
-  segment: { flexDirection: 'row', padding: 3, marginBottom: Spacing.three, borderRadius: Radius.pill, backgroundColor: Palette.blueMist },
-  segmentItem: { flex: 1, minHeight: 36, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
-  segmentItemActive: { backgroundColor: Palette.white, ...Shadow.card },
+  list: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two, paddingBottom: Spacing.six },
+  summary: { flexDirection: 'row', gap: Spacing.two },
+  summaryItem: { flex: 1, paddingVertical: Spacing.twoHalf, paddingHorizontal: Spacing.twoHalf, borderRadius: Radius.medium, backgroundColor: Palette.white, ...Shadow.card },
+  summaryValue: { ...Stat, fontSize: 26, lineHeight: 30, color: Palette.parisBlue },
+  summaryLabel: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '600' },
+  segment: { flexDirection: 'row', padding: 3, marginTop: Spacing.three, marginBottom: Spacing.three, borderRadius: Radius.pill, backgroundColor: Palette.blueMist },
+  segmentItem: { flex: 1, minHeight: 38, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
+  segmentItemActive: { backgroundColor: Palette.ink },
   segmentText: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '700' },
-  segmentTextActive: { color: Palette.ink },
-  count: { ...Typography.caption, marginBottom: Spacing.three, color: Palette.inkSoft, fontFamily: Fonts.sans },
-  card: { marginBottom: Spacing.three, borderRadius: Radius.large, backgroundColor: Palette.white, overflow: 'hidden', ...Shadow.card },
-  thumbnail: { width: '100%', height: 210, backgroundColor: Palette.blueMist },
+  segmentTextActive: { color: Palette.white },
+  albums: { gap: Spacing.three },
+  footnote: { ...Typography.caption, textAlign: 'center', color: Palette.inkSoft, fontFamily: Fonts.sans, paddingHorizontal: Spacing.three },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.twoHalf },
+  tile: { marginBottom: Spacing.two },
+  tilePressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
+  tilePhoto: { borderRadius: Radius.medium + 4, overflow: 'hidden', backgroundColor: Palette.blueMist },
+  tileInset: { position: 'absolute', left: Spacing.two, bottom: Spacing.two, width: 52, height: 40, borderRadius: 10, overflow: 'hidden', borderWidth: 2, borderColor: Palette.white, backgroundColor: Palette.archive },
+  tileStatus: { position: 'absolute', top: Spacing.two, right: Spacing.two, flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: Radius.pill },
+  tileStatusReady: { backgroundColor: Palette.lichen },
+  tileStatusTodo: { backgroundColor: 'rgba(8, 17, 22, 0.72)' },
+  tileStatusText: { color: Palette.white, fontFamily: Fonts.sans, fontWeight: '700', fontSize: 11, lineHeight: 14 },
+  tileTitle: { ...Typography.caption, marginTop: Spacing.two, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
+  tileMeta: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   simulatedThumbnail: { alignItems: 'center', justifyContent: 'center', gap: Spacing.one },
   simulatedLabel: { ...Kicker, color: Palette.parisBlue },
-  cardBody: { padding: Spacing.three, paddingRight: 60 },
-  cardKicker: { ...Kicker, color: Palette.go },
-  cardTitle: { ...Typography.title, marginTop: Spacing.one, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
-  cardMeta: { ...Typography.caption, marginTop: Spacing.one, color: Palette.inkSoft, fontFamily: Fonts.sans },
-  preparationRow: { marginTop: Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  preparationText: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '600' },
-  delete: { position: 'absolute', right: Spacing.two, top: 210 + Spacing.two, width: HitSize, height: HitSize, borderRadius: HitSize / 2, backgroundColor: Palette.fog, alignItems: 'center', justifyContent: 'center' },
-  actions: { padding: Spacing.three, paddingTop: 0, flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  action: { minHeight: HitSize, paddingHorizontal: Spacing.three, borderRadius: Radius.pill, backgroundColor: Palette.blueMist, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.one },
-  actionText: { ...Typography.caption, color: Palette.parisBlue, fontFamily: Fonts.sans, fontWeight: '700' },
-  primaryAction: { minHeight: HitSize, flexGrow: 1, paddingHorizontal: Spacing.three, borderRadius: Radius.pill, backgroundColor: Palette.go, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.one },
-  primaryActionText: { ...Typography.caption, color: Palette.white, fontFamily: Fonts.sans, fontWeight: '700' },
-  pressed: { opacity: 0.8, transform: [{ scale: 0.97 }] },
+  pressed: { opacity: 0.8, transform: [{ scale: 0.95 }] },
 });

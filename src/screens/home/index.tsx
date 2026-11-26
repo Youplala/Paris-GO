@@ -10,11 +10,13 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AlbumCoverCard } from '@/components/album-cover-card';
 import { MissionCard } from '@/components/mission-card';
 import { ProgressBar } from '@/components/progress-bar';
 import { SourcePill } from '@/components/source-pill';
@@ -31,6 +33,7 @@ import {
   Typography,
 } from '@/constants/theme';
 
+import { useAlbums } from '@/hooks/use-albums';
 import { useUserLocation } from '@/hooks/use-user-location';
 import { useStations } from '@/providers/stations-provider';
 
@@ -80,6 +83,9 @@ export function HomeScreen() {
   );
 
   const [mission, ...others] = nearby;
+  const { albums, titleFor } = useAlbums();
+  const { width } = useWindowDimensions();
+  const albumCardWidth = albums.length > 1 ? Math.min(300, width - 80) : width - Spacing.three * 2;
   const lastMonth = stats.monthlyActivity[stats.monthlyActivity.length - 1];
   const percentageLabel = coverage.percentage.toLocaleString('fr-FR', {
     maximumFractionDigits: 1,
@@ -181,18 +187,16 @@ export function HomeScreen() {
             </View>
             <ProgressBar percentage={coverage.percentage} height={10} />
             <View style={styles.progressStats}>
-              <Text style={styles.progressStat}>
-                <Text style={styles.progressStatStrong}>{coverage.published1970.toLocaleString('fr-FR')}</Text>{' '}
-                photos refaites
-              </Text>
-              <Text style={styles.progressStat}>
-                <Text style={styles.progressStatStrong}>{stats.contributorCount.toLocaleString('fr-FR')}</Text>{' '}
-                explorateurs
-              </Text>
-              <Text style={styles.progressStat}>
-                <Text style={styles.progressStatStrong}>{coverage.squaresOpened.toLocaleString('fr-FR')}</Text>{' '}
-                secteurs ouverts
-              </Text>
+              {[
+                { value: coverage.published1970, label: 'photos refaites' },
+                { value: stats.contributorCount, label: 'explorateurs' },
+                { value: coverage.squaresOpened, label: 'secteurs ouverts' },
+              ].map((item) => (
+                <View key={item.label} style={styles.progressStatItem}>
+                  <Text style={styles.progressStatStrong}>{item.value.toLocaleString('fr-FR')}</Text>
+                  <Text style={styles.progressStat}>{item.label}</Text>
+                </View>
+              ))}
             </View>
           </Pressable>
         </SafeAreaView>
@@ -204,6 +208,41 @@ export function HomeScreen() {
               distance={locationContent.showDistances ? mission.distance : undefined}
             />
           </Animated.View>
+        ) : null}
+
+        {albums.length ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHead}>
+              <Text accessibilityRole="header" style={styles.sectionTitle}>Vos balades</Text>
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => router.push('/fieldbook')}
+                style={({ pressed }) => [styles.sectionLink, pressed && styles.pressedSoft]}>
+                <Text style={styles.sectionLinkText}>Carnet</Text>
+                <SymbolView name="chevron.right" size={12} tintColor={Palette.go} />
+              </Pressable>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              decelerationRate="fast"
+              snapToInterval={albumCardWidth + Spacing.twoHalf}
+              contentContainerStyle={styles.albumRail}>
+              {albums.slice(0, 6).map((album) => (
+                <AlbumCoverCard
+                  key={album.id}
+                  album={album}
+                  title={titleFor(album)}
+                  variant="compact"
+                  width={albumCardWidth}
+                  onPress={() => {
+                    void Haptics.selectionAsync();
+                    router.push({ pathname: '/album/[id]', params: { id: album.id } });
+                  }}
+                />
+              ))}
+            </ScrollView>
+          </View>
         ) : null}
 
         {others.length ? (
@@ -347,7 +386,11 @@ const styles = StyleSheet.create({
   },
   progress: {
     marginTop: Spacing.three,
-    gap: Spacing.two,
+    padding: Spacing.three,
+    gap: Spacing.twoHalf,
+    borderRadius: Radius.large,
+    backgroundColor: Palette.white,
+    ...Shadow.card,
   },
   progressHead: {
     flexDirection: 'row',
@@ -374,9 +417,10 @@ const styles = StyleSheet.create({
   },
   progressStats: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    columnGap: Spacing.three,
-    rowGap: Spacing.half,
+    gap: Spacing.two,
+  },
+  progressStatItem: {
+    flex: 1,
   },
   progressStat: {
     ...Typography.caption,
@@ -384,10 +428,15 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sans,
   },
   progressStatStrong: {
-    ...Typography.caption,
+    ...Typography.title,
     color: Palette.ink,
-    fontFamily: Fonts.sans,
+    fontFamily: Fonts.display,
     fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  albumRail: {
+    paddingHorizontal: Spacing.three,
+    gap: Spacing.twoHalf,
   },
   section: {
     marginTop: Spacing.five,

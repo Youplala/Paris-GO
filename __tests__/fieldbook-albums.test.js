@@ -44,7 +44,8 @@ it('ouvre le carnet sur les balades, titres choisis compris, et bascule vers les
   await act(async () => { renderer = create(<FieldbookScreen />); });
   await act(async () => {});
   expect(texts()).toEqual(expect.arrayContaining([
-    'Balades · 2', 'Photos · 3', 'Autour du Champ-de-Mars', 'Balade du 21 juin 2025', '2 reprises · Secteur 995',
+    'Carnet', '2', 'balades', '3', 'reprises', 'Balades · 2', 'Photos · 3',
+    'Autour du Champ-de-Mars', 'Balade du 21 juin 2025', '2 reprises', 'Secteur 995',
   ]));
 
   const album = renderer.root.find((node) => typeof node.props.onPress === 'function'
@@ -56,5 +57,28 @@ it('ouvre le carnet sur les balades, titres choisis compris, et bascule vers les
     && typeof node.props.onPress === 'function'
     && node.findAllByType(Text).some((text) => [].concat(text.props.children).join('') === 'Photos · 3'));
   await act(async () => photosTab.props.onPress());
-  expect(texts()).toContain('3 reprises conservées sur cet appareil');
+  expect(texts()).toEqual(expect.arrayContaining(['Secteur 995 · photo 1', 'À déposer']));
+  expect(texts().some((text) => /^14 juil\./.test(text))).toBe(true);
+});
+
+it('ouvre les actions d’une reprise depuis la grille des photos', async () => {
+  const { ActionSheetIOS } = require('react-native');
+  const sheet = jest.spyOn(ActionSheetIOS, 'showActionSheetWithOptions').mockImplementation((options, callback) => callback(0));
+  await act(async () => { renderer = create(<FieldbookScreen />); });
+  await act(async () => {});
+  const photosTab = renderer.root.find((node) => node.props.accessibilityRole === 'tab'
+    && node.findAllByType(Text).some((text) => [].concat(text.props.children).join('') === 'Photos · 3'));
+  await act(async () => photosTab.props.onPress());
+  const tile = renderer.root.findAll((node) => typeof node.props.onPress === 'function'
+    && (node.props.accessibilityHint ?? '') === 'Ouvre les actions de cette reprise')[0];
+  await act(async () => tile.props.onPress());
+  expect(sheet).toHaveBeenCalledWith(
+    expect.objectContaining({
+      options: ['Comparer avec la photo d’archive', 'Reprendre le dépôt', 'Partager', 'Supprimer', 'Annuler'],
+      destructiveButtonIndex: 3,
+      cancelButtonIndex: 4,
+    }),
+    expect.any(Function),
+  );
+  expect(mockPush).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/capture-review' }));
 });
