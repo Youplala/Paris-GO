@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import type { ImageSource } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -13,7 +13,10 @@ import {
   View,
 } from 'react-native';
 
+import Animated, { ZoomIn } from 'react-native-reanimated';
+
 import { BeforeAfterSlider } from '@/components/before-after-slider';
+import { CaptureCelebration } from '@/components/capture-celebration';
 import { GlassIconButton } from '@/components/glass-icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { SIMULATED_CAMERA_IMAGE } from '@/constants/demo';
@@ -76,6 +79,7 @@ export function ReviewScreen() {
     longitude: number;
   }>();
   const [comparisonActive, setComparisonActive] = useState(false);
+  const [celebrationDone, setCelebrationDone] = useState(false);
   const isSimulated = simulated !== '0';
   const isArchiveSector = detail?.kind === 'archive-1970';
   const { images: archiveImages } = useBhvpImages(
@@ -179,6 +183,14 @@ export function ReviewScreen() {
       url: savedCaptureUri ?? uri,
     });
 
+  // Si l'archive ne se charge pas (hors ligne), on n'attend pas la fête indéfiniment.
+  const hasReference = Boolean(referenceImage);
+  useEffect(() => {
+    if (resumed === '1' || hasReference) return;
+    const timer = setTimeout(() => setCelebrationDone(true), 5000);
+    return () => clearTimeout(timer);
+  }, [hasReference, resumed]);
+
   const archiveMetadata = isArchiveSector ? detail?.archiveMetadata[frameIndex] : detail?.referenceMetadata;
   const placeTitle = isArchiveSector
     ? `Secteur ${detail?.name ?? ''} · photo ${frameIndex + 1}`
@@ -198,6 +210,8 @@ export function ReviewScreen() {
     ...(saved && inLibrary ? [{ icon: 'photo.fill' as const, label: 'Dans Photos', tone: 'ok' as const }] : []),
   ];
   const step = saved ? 2 : 1;
+  // La fête n'a lieu qu'une fois, juste après la prise de vue ; jamais en rouvrant le carnet.
+  const celebrate = resumed !== '1' && !celebrationDone;
 
   return (
     <View style={styles.screen}>
@@ -239,14 +253,17 @@ export function ReviewScreen() {
 
           <View style={styles.chips}>
             {chips.map((chip) => (
-              <View key={chip.label} style={[styles.chip, chip.tone === 'ok' ? styles.chipOk : chip.tone === 'warn' ? styles.chipWarn : styles.chipNeutral]}>
+              <Animated.View
+                key={chip.label}
+                entering={ZoomIn.springify().damping(12)}
+                style={[styles.chip, chip.tone === 'ok' ? styles.chipOk : chip.tone === 'warn' ? styles.chipWarn : styles.chipNeutral]}>
                 <SymbolView
                   name={chip.icon}
                   size={14}
                   tintColor={chip.tone === 'ok' ? Palette.lichen : chip.tone === 'warn' ? Palette.go : Palette.parisBlue}
                 />
                 <Text style={[styles.chipText, chip.tone === 'warn' && styles.chipTextWarn]}>{chip.label}</Text>
-              </View>
+              </Animated.View>
             ))}
           </View>
 
@@ -306,12 +323,26 @@ export function ReviewScreen() {
           </Pressable>
         </View>
       </ScrollView>
+      {celebrate && referenceImage && currentImage ? (
+        <CaptureCelebration
+          before={referenceImage}
+          after={currentImage}
+          fromYear={detail?.year ?? 1970}
+          toYear={2026}
+          place={placeTitle}
+          onDone={() => setCelebrationDone(true)}
+        />
+      ) : celebrate ? (
+        // Le temps que l'archive arrive, un fond noir plutôt qu'un écran qui saute.
+        <View style={[StyleSheet.absoluteFill, styles.celebrationWait]} />
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Palette.fog },
+  celebrationWait: { backgroundColor: Palette.black },
   content: { paddingBottom: Spacing.six },
   comparisonPlaceholder: { backgroundColor: Palette.blueMist },
   overlay: { position: 'absolute', top: Spacing.three, left: Spacing.three, right: Spacing.three, flexDirection: 'row', justifyContent: 'space-between' },
