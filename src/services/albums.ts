@@ -1,4 +1,5 @@
 import type { SavedCapture } from '@/services/fieldbook-store';
+import type { StationSummary } from '@/types/station';
 
 /**
  * Une balade : les reprises du carnet prises le même jour (heure de Paris), dans l'ordre de la
@@ -31,11 +32,11 @@ export function albumDayKey(isoDate: string) {
   return dayKeyFormat.format(date);
 }
 
-/**
- * Regroupe les reprises par jour, la balade la plus récente d'abord. Les captures de
- * démonstration, sans photo réelle, ne forment pas d'album.
- */
-export function groupCapturesIntoAlbums(captures: readonly SavedCapture[]): Album[] {
+/** Une balade est un parcours : il faut au moins deux photos le même jour pour la tracer. */
+export const MIN_ALBUM_PHOTOS = 2;
+
+/** Les photos réelles (hors démonstration) regroupées par jour vécu à Paris. */
+function capturesByDay(captures: readonly SavedCapture[]) {
   const byDay = new Map<string, SavedCapture[]>();
   for (const capture of captures) {
     if (capture.simulated || !capture.imageUri) continue;
@@ -43,8 +44,25 @@ export function groupCapturesIntoAlbums(captures: readonly SavedCapture[]): Albu
     if (!day) continue;
     byDay.set(day, [...(byDay.get(day) ?? []), capture]);
   }
+  return byDay;
+}
 
-  return [...byDay.entries()]
+/**
+ * Nombre de photos réelles déjà prises aujourd'hui : une seule ne fait pas encore une balade,
+ * l'écran peut alors dire qu'il en manque une.
+ */
+export function capturesTakenToday(captures: readonly SavedCapture[], now = new Date()) {
+  const today = albumDayKey(now.toISOString());
+  return today ? capturesByDay(captures).get(today)?.length ?? 0 : 0;
+}
+
+/**
+ * Regroupe les reprises par jour, la balade la plus récente d'abord. Les captures de
+ * démonstration, sans photo réelle, ne forment pas d'album, et un jour d'une seule photo non plus.
+ */
+export function groupCapturesIntoAlbums(captures: readonly SavedCapture[]): Album[] {
+  return [...capturesByDay(captures).entries()]
+    .filter(([, dayCaptures]) => dayCaptures.length >= MIN_ALBUM_PHOTOS)
     .map(([id, dayCaptures]) => {
       const ordered = [...dayCaptures].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
       return {
@@ -63,7 +81,7 @@ export function findAlbum(captures: readonly SavedCapture[], id: string) {
 
 const EARTH_RADIUS_METERS = 6_371_000;
 
-function haversineMeters(a: Coordinate, b: Coordinate) {
+export function haversineMeters(a: Coordinate, b: Coordinate) {
   const toRadians = (value: number) => (value * Math.PI) / 180;
   const dLat = toRadians(b.latitude - a.latitude);
   const dLon = toRadians(b.longitude - a.longitude);
@@ -171,4 +189,37 @@ export function placeLabel(capture: Pick<SavedCapture, 'stationId' | 'stationNam
   const name = capture.stationName?.trim();
   if (!name) return `Point ${capture.stationId}`;
   return isArchiveSector && /^\d+$/.test(name) ? `Secteur ${name}` : name;
+}
+
+export type NextPhotoSuggestion = {
+  station: StationSummary;
+  /** Distance à vol d'oiseau depuis la dernière photo, en mètres. */
+  distanceMeters: number;
+  /** Photos de 1970 encore à refaire dans ce secteur. */
+  remaining: number;
+};
+
+/** Photos de 1970 encore à refaire dans un secteur (0 si tout est fait ou si ce n'est pas 1970). */
+function remainingIn(station: StationSummary) {
+  if (station.kind !== 'archive-1970') return 0;
+  return station.remainingCount ?? station.frameCount ?? 0;
+}
+
+/**
+ * Le secteur de 1970 le plus proche de la dernière photo où il reste une vue à refaire : la
+ * suite naturelle de la balade. Le secteur de départ compte, s'il lui reste des photos.
+ */
+export function suggestNextPhoto(
+  stations: readonly StationSummary[],
+  from: Coordinate | undefined,
+): NextPhotoSuggestion | undefined {
+  if (!from) return undefined;
+  let best: NextPhotoSuggestion | undefined;
+  for (const station of stations) {
+    const remaining = remainingIn(station);
+    if (remaining <= 0) continue;
+    const distanceMeters = haversineMeters(from, station.coordinate);
+    if (!best || distanceMeters < best.distanceMeters) best = { station, distanceMeters, remaining };
+  }
+  return best;
 }

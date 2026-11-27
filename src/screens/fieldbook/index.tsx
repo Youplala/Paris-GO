@@ -20,6 +20,7 @@ import {
 
 import { Illustrations } from '@/constants/illustrations';
 import { BadgeShelf } from '@/components/badge-shelf';
+import { NextWalkPrompt } from '@/components/next-walk-prompt';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { SegmentedControl } from '@/components/ui/segmented-control';
@@ -37,7 +38,7 @@ import {
 import { useAlbumReferences } from '@/hooks/use-album-references';
 import { albumTitleStore } from '@/services/album-title-store';
 import type { AlbumTitles } from '@/services/album-titles';
-import { defaultAlbumTitle, formatWalkDistance, groupCapturesIntoAlbums, walkDistanceMeters } from '@/services/albums';
+import { albumDayKey, defaultAlbumTitle, formatWalkDistance, groupCapturesIntoAlbums, suggestNextPhoto, walkDistanceMeters } from '@/services/albums';
 import { deleteCapture, getSavedCaptures, type SavedCapture } from '@/services/fieldbook';
 import { getFieldbookViewState } from '@/services/fieldbook-view-state';
 
@@ -151,13 +152,25 @@ export function FieldbookScreen() {
   };
 
   const state = getFieldbookViewState(captures);
-  const { findStation } = useStations();
+  const { findStation, stations } = useStations();
   const badges = useMemo(
     () => computeBadges(captures, (stationId) => findStation(stationId)?.frameCount),
     [captures, findStation],
   );
   const albums = useMemo(() => groupCapturesIntoAlbums(captures), [captures]);
-  const showAlbums = view === 'albums' && albums.length > 0;
+  const showAlbums = view === 'albums';
+  // Une seule photo aujourd'hui : la balade du jour attend sa deuxième photo, la plus proche possible.
+  const realCaptures = useMemo(
+    () => captures.filter((capture) => !capture.simulated && capture.imageUri)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [captures],
+  );
+  const todayKey = albumDayKey(new Date().toISOString());
+  const todayCaptures = realCaptures.filter((capture) => albumDayKey(capture.createdAt) === todayKey);
+  const todayCapture = todayCaptures.length === 1 ? todayCaptures[0] : undefined;
+  const nextFrom = (todayCapture ?? realCaptures.find((capture) => capture.coordinate))?.coordinate;
+  const nextPhoto = useMemo(() => suggestNextPhoto(stations, nextFrom), [stations, nextFrom]);
+  const showNextWalk = Boolean(todayCapture) || albums.length === 0;
   const totalDistance = formatWalkDistance(
     albums.reduce((sum, album) => sum + walkDistanceMeters(album.captures.map((capture) => capture.coordinate)), 0),
   );
@@ -195,7 +208,7 @@ export function FieldbookScreen() {
   };
 
   const summary = [
-    `${albums.length} ${albums.length > 1 ? 'balades' : 'balade'}`,
+    albums.length ? `${albums.length} ${albums.length > 1 ? 'balades' : 'balade'}` : undefined,
     `${state.kind === 'filled' ? state.count : 0} ${state.kind === 'filled' && state.count > 1 ? 'photos' : 'photo'}`,
     totalDistance,
   ].filter(Boolean).join(' · ');
@@ -228,7 +241,7 @@ export function FieldbookScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
           <Text style={styles.summary}>{summary}</Text>
 
-          {albums.length > 0 ? (
+          {state.count > 0 ? (
             <View style={styles.segment}>
               <SegmentedControl
                 value={view}
@@ -243,6 +256,17 @@ export function FieldbookScreen() {
 
           {showAlbums ? (
             <View style={styles.albums}>
+              {showNextWalk ? (
+                <NextWalkPrompt
+                  todayCapture={todayCapture}
+                  suggestion={nextPhoto}
+                  onOpenSuggestion={() => {
+                    if (!nextPhoto) return;
+                    router.push({ pathname: '/station/[id]', params: { id: nextPhoto.station.id } });
+                  }}
+                  onFindOnMap={() => router.replace('/map')}
+                />
+              ) : null}
               {albums.map((album) => (
                 <AlbumCoverCard
                   key={album.id}
