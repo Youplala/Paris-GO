@@ -283,7 +283,7 @@ export function OfficialSubmissionScreen() {
   const [loading, setLoading] = useState(true);
   const [formError, setFormError] = useState<string>();
   const [webKey, setWebKey] = useState(0);
-  const [prefilledCount, setPrefilledCount] = useState(0);
+  const [, setPrefilledCount] = useState(0);
   const [validationMessage, setValidationMessage] = useState<string>();
   const [submissionStatus, setSubmissionStatus] = useState<'editing' | 'success'>('editing');
   const [preparingImages, setPreparingImages] = useState(false);
@@ -632,37 +632,28 @@ export function OfficialSubmissionScreen() {
                 state={thumbState(preparedImages.current, attachedFileCount === 2, preparingImages)}
               />
             </View>
-            <View style={styles.summaryCopy}>
-              <Text style={styles.summaryTitle}>
-                {isSimulated
-                  ? 'Aperçu de démonstration'
-                  : attachedFileCount === 2
-                    ? 'Tout est prêt'
-                    : preparingImages
-                      ? 'Préparation des photos…'
-                      : `${preparedCount}/2 photo${preparedCount > 1 ? 's' : ''} préparée${preparedCount > 1 ? 's' : ''}`}
-              </Text>
-              <Text style={styles.summaryMeta} numberOfLines={1}>
-                {`${attachedFileCount}/2 photos · ${prefilledCount} champ${prefilledCount > 1 ? 's' : ''} rempli${prefilledCount > 1 ? 's' : ''}`}
-              </Text>
-            </View>
+            {/* Une seule ligne : ce qui reste à faire. Les coches des miniatures disent déjà que
+                les photos sont jointes. */}
+            <Text style={styles.summaryText}>
+              {isSimulated ? (
+                'Aperçu de démonstration : rien ne sera envoyé.'
+              ) : attachedFileCount === 2 || !preparingImages ? (
+                <>
+                  <Text style={styles.todoStrong}>À vous : </Text>
+                  {identity
+                    ? 'cochez le règlement, puis Envoyer en bas.'
+                    : 'nom, e-mail, règlement, puis Envoyer en bas.'}
+                </>
+              ) : (
+                'Préparation des photos…'
+              )}
+            </Text>
             <SymbolView
               name={chromeExpanded ? 'chevron.up' : 'chevron.down'}
               size={13}
               tintColor={Palette.inkSoft}
             />
           </Pressable>
-
-          {/* La seule chose à retenir, toujours visible : ce qui reste à faire soi-même. */}
-          <View style={styles.todo}>
-            <SymbolView name="hand.tap.fill" size={15} tintColor={Palette.go} />
-            <Text style={styles.todoText}>
-              <Text style={styles.todoStrong}>À vous : </Text>
-              {identity
-                ? 'vérifiez vos informations, cochez le règlement, puis Envoyer en bas.'
-                : 'nom, e-mail, règlement, puis Envoyer en bas du formulaire.'}
-            </Text>
-          </View>
 
           {chromeExpanded ? (
             <View style={styles.summaryBody}>
@@ -940,7 +931,7 @@ const styles = StyleSheet.create({
   thumbBadgePending: { backgroundColor: 'rgba(8, 17, 22, 0.55)' },
   thumbSpinner: { transform: [{ scale: 0.6 }] },
   summaryCopy: { flex: 1, gap: 2 },
-  summaryTitle: { ...Typography.body, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
+  summaryText: { ...Typography.body, flex: 1, color: Palette.ink, fontFamily: Fonts.sans },
   summaryMeta: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   summaryBody: {
     paddingHorizontal: Spacing.twoHalf,
@@ -964,8 +955,6 @@ const styles = StyleSheet.create({
   identityTitle: { ...Typography.body, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
   identityMeta: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   identityAction: { ...Typography.caption, color: Palette.go, fontFamily: Fonts.sans, fontWeight: '700' },
-  todo: { paddingHorizontal: Spacing.twoHalf, paddingBottom: Spacing.twoHalf, flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
-  todoText: { ...Typography.body, flex: 1, color: Palette.ink, fontFamily: Fonts.sans },
   todoStrong: { fontWeight: '700', color: Palette.go },
   trustText: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   summaryActions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
