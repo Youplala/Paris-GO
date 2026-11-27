@@ -4,6 +4,7 @@ import { act, create } from 'react-test-renderer';
 import { TextInput } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { BeforeAfterSlider } from '@/components/before-after-slider';
 import { CollectiveScreen } from '@/screens/collective';
 import { ContributorScreen } from '@/screens/contributor';
 
@@ -77,11 +78,16 @@ it('dit clairement quand personne ne porte ce prénom', async () => {
   expect(texts()).toContain('Personne ne porte ce prénom dans le relevé');
 });
 
-it('montre toutes les photos d’une personne en grille, chacune ouvre sa fiche', async () => {
+it('montre les photos d’une personne en grand format, puis en grille au choix', async () => {
   await act(async () => {
-    renderer = create(<ContributorScreen />);
+    renderer = create(<GestureHandlerRootView><ContributorScreen /></GestureHandlerRootView>);
   });
   expect(texts()).toEqual(expect.arrayContaining(['Martin de P.', 'Photographe d’aujourd’hui', 'Rue de l’Espérance', 'Place d’Italie']));
+  expect(renderer.root.findAllByType(BeforeAfterSlider)).toHaveLength(2);
+  const gridTab = renderer.root.findAll((node) =>
+    node.props.accessibilityLabel === 'Grille' && typeof node.props.onPress === 'function')[0];
+  await act(async () => gridTab.props.onPress());
+  expect(renderer.root.findAllByType(BeforeAfterSlider)).toHaveLength(0);
   const tile = renderer.root.findAll((node) =>
     node.props.accessibilityLabel === 'Ouvrir la photo refaite Place d’Italie' && typeof node.props.onPress === 'function')[0];
   await act(async () => tile.props.onPress());

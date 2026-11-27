@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { BeforeAfterSlider } from '@/components/before-after-slider';
 import { CollectiveScreen } from '@/screens/collective';
+import { ContributorScreen } from '@/screens/contributor';
 
 jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'));
 jest.mock('react-native-reanimated', () => ({
@@ -41,6 +42,7 @@ afterEach(async () => {
 
 it.each([
   ['le fil Communauté', CollectiveScreen],
+  ['le profil contributeur, en grand format', ContributorScreen],
 ])('sépare la comparaison du bouton de légende dans %s', async (_, Screen) => {
   // Gesture Handler 3 exige un GestureHandlerRootView au-dessus de chaque GestureDetector.
   await act(async () => {
