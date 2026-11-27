@@ -86,7 +86,7 @@ export default function RootLayout() {
                 />
                 <Stack.Screen
                   name="album/[id]"
-                  options={{ presentation: 'fullScreenModal', animation: 'fade' }}
+                  options={{ presentation: 'fullScreenModal', animation: 'fade', statusBarStyle: 'light' }}
                 />
                 <Stack.Screen
                   name="album-share/[id]"
@@ -102,7 +102,7 @@ export default function RootLayout() {
                 <Stack.Screen name="station/[id]" />
                 <Stack.Screen
                   name="align/[id]"
-                  options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
+                  options={{ presentation: 'fullScreenModal', gestureEnabled: false, statusBarStyle: 'light' }}
                 />
                 <Stack.Screen
                   name="capture-review"

@@ -17,10 +17,10 @@ import Animated, { ZoomIn } from 'react-native-reanimated';
 
 import { BeforeAfterSlider } from '@/components/before-after-slider';
 import { CaptureCelebration } from '@/components/capture-celebration';
-import { GlassIconButton } from '@/components/glass-icon-button';
+import { IconButton } from '@/components/ui/icon-button';
 import { PrimaryButton } from '@/components/primary-button';
 import { SIMULATED_CAMERA_IMAGE } from '@/constants/demo';
-import { Fonts, Kicker, Palette, Radius, Spacing, Typography } from '@/constants/theme';
+import { Fonts, Kicker, Palette, Spacing, Typography } from '@/constants/theme';
 import { useBhvpImages } from '@/hooks/use-bhvp-images';
 import { useStationDetail } from '@/hooks/use-station-detail';
 import {
@@ -199,17 +199,6 @@ export function ReviewScreen() {
     ? formatContributorName(archiveMetadata.author)
     : undefined;
   const yearsApart = 2026 - (detail?.year ?? 1970);
-  // Des pastilles en langage courant : vert quand c'est bon, orange seulement s'il manque quelque chose.
-  const chips: { icon: 'location.fill' | 'location.slash.fill' | 'book.closed.fill' | 'photo.fill' | 'iphone'; label: string; tone: 'ok' | 'warn' | 'neutral' }[] = [
-    isSimulated
-      ? { icon: 'iphone', label: 'Mode démo', tone: 'neutral' }
-      : captureLocation
-        ? { icon: 'location.fill', label: 'Position enregistrée', tone: 'ok' }
-        : { icon: 'location.slash.fill', label: 'Position manquante', tone: 'warn' },
-    ...(saved ? [{ icon: 'book.closed.fill' as const, label: 'Dans le carnet', tone: 'ok' as const }] : []),
-    ...(saved && inLibrary ? [{ icon: 'photo.fill' as const, label: 'Dans Photos', tone: 'ok' as const }] : []),
-  ];
-  const step = saved ? 2 : 1;
   // La fête n'a lieu qu'une fois, juste après la prise de vue ; jamais en rouvrant le carnet.
   const celebrate = resumed !== '1' && !celebrationDone;
 
@@ -236,8 +225,8 @@ export function ReviewScreen() {
             <View style={[styles.comparisonPlaceholder, { height: Math.round(windowHeight * 0.52) }]} />
           )}
           <View pointerEvents="box-none" style={styles.overlay}>
-            <GlassIconButton systemImage="xmark" accessibilityLabel="Fermer" onPress={() => router.back()} size={46} />
-            <GlassIconButton systemImage="square.and.arrow.up" accessibilityLabel="Partager" onPress={() => void share()} size={46} />
+            <IconButton icon="xmark" variant="media" accessibilityLabel="Fermer" onPress={() => router.back()} />
+            <IconButton icon="square.and.arrow.up" variant="media" accessibilityLabel="Partager" onPress={() => void share()} />
           </View>
         </View>
 
@@ -251,68 +240,50 @@ export function ReviewScreen() {
             {archiveAuthor ? ` · par ${archiveAuthor}` : ''}
           </Text>
 
-          <View style={styles.chips}>
-            {chips.map((chip) => (
-              <Animated.View
-                key={chip.label}
-                entering={ZoomIn.springify().damping(12)}
-                style={[styles.chip, chip.tone === 'ok' ? styles.chipOk : chip.tone === 'warn' ? styles.chipWarn : styles.chipNeutral]}>
-                <SymbolView
-                  name={chip.icon}
-                  size={14}
-                  tintColor={chip.tone === 'ok' ? Palette.lichen : chip.tone === 'warn' ? Palette.go : Palette.parisBlue}
-                />
-                <Text style={[styles.chipText, chip.tone === 'warn' && styles.chipTextWarn]}>{chip.label}</Text>
-              </Animated.View>
-            ))}
-          </View>
-
-          {/* Deux étapes, toujours dans le même ordre : garder la photo, puis l'envoyer. */}
-          <View style={styles.steps} accessibilityRole="progressbar" accessibilityValue={{ min: 1, max: 2, now: step }}>
-            {['Garder ma photo', 'Envoyer à l’Observatoire'].map((label, index) => {
-              const done = index + 1 < step;
-              const current = index + 1 === step;
-              return (
-                <View key={label} style={styles.step}>
-                  <View style={[styles.stepDot, done && styles.stepDotDone, current && styles.stepDotCurrent]}>
-                    {done ? (
-                      <SymbolView name="checkmark" size={13} weight="bold" tintColor={Palette.white} />
-                    ) : (
-                      <Text style={[styles.stepNumber, current && styles.stepNumberCurrent]}>{index + 1}</Text>
-                    )}
-                  </View>
-                  <Text style={[styles.stepLabel, (current || done) && styles.stepLabelActive]}>{label}</Text>
-                </View>
-              );
-            })}
-          </View>
+          {!isSimulated && !captureLocation ? (
+            <View style={styles.notice}>
+              <SymbolView name="location.slash" size={16} tintColor={Palette.go} />
+              <Text style={styles.noticeText}>Position non enregistrée : le formulaire officiel vous la demandera.</Text>
+            </View>
+          ) : null}
 
           {saved ? (
             <>
-              <PrimaryButton
-                label="Envoyer à l’Observatoire"
-                icon="paperplane.fill"
-                onPress={openObservatoire}
-                style={styles.primary}
-              />
-              <Text style={styles.help}>
-                {isSimulated
-                  ? 'Aperçu ajouté au carnet. Aucune photo créée en mode démo.'
-                  : inLibrary
-                    ? 'Votre photo est dans votre carnet et dans Photos (Récents). Le formulaire est prérempli : vous n’avez plus qu’à vérifier et envoyer.'
-                    : 'Votre photo est dans votre carnet. Le formulaire est prérempli : vous n’avez plus qu’à vérifier et envoyer.'}
-              </Text>
+              <Animated.View entering={ZoomIn.springify().damping(12)} style={styles.confirmation}>
+                <SymbolView name="checkmark.circle.fill" size={22} tintColor={Palette.lichenDeep} />
+                <Text style={styles.confirmationText}>
+                  {isSimulated
+                    ? 'Aperçu gardé dans le carnet. Aucune vraie photo n’a été prise.'
+                    : inLibrary
+                      ? 'Gardée dans votre carnet et dans Photos (Récents).'
+                      : 'Gardée dans votre carnet.'}
+                </Text>
+              </Animated.View>
+              {/* La contribution vient après, et elle est facultative. */}
+              <View style={styles.contribute}>
+                <PrimaryButton
+                  label="Contribuer à l’Observatoire"
+                  icon="paperplane.fill"
+                  variant="secondary"
+                  onPress={openObservatoire}
+                />
+                <Text style={styles.help}>Facultatif : vous vérifiez puis envoyez vous-même.</Text>
+              </View>
             </>
           ) : (
             <>
               <PrimaryButton
-                label="Garder ma photo"
+                label={isSimulated ? 'Garder l’aperçu' : 'Garder dans mon carnet'}
                 icon="checkmark"
                 loading={saving}
                 onPress={save}
                 style={styles.primary}
               />
-              <Text style={styles.help}>Elle va dans votre carnet et dans vos Photos.</Text>
+              <Text style={styles.help}>
+                {isSimulated
+                  ? 'Mode démo : aucune vraie photo n’est prise.'
+                  : 'Elle reste sur votre téléphone. Une copie va dans Photos si vous l’autorisez.'}
+              </Text>
             </>
           )}
           {saveError ? <Text style={styles.saveError}>{saveError}</Text> : null}
@@ -349,25 +320,14 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: Spacing.four, paddingTop: Spacing.four },
   kicker: { ...Kicker, color: Palette.go },
   // Titre de l'écran : un seul niveau « display » par vue.
-  title: { ...Typography.display, marginTop: Spacing.one, fontSize: 34, lineHeight: 38, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
+  title: { ...Typography.display, marginTop: Spacing.one, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
   place: { ...Typography.body, marginTop: Spacing.one, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '600' },
-  chips: { marginTop: Spacing.three, flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.twoHalf, paddingVertical: 7, borderRadius: Radius.pill },
-  chipOk: { backgroundColor: 'rgba(79, 138, 107, 0.14)' },
-  chipWarn: { backgroundColor: Palette.goSoft },
-  chipNeutral: { backgroundColor: Palette.blueMist },
-  chipText: { ...Typography.caption, fontSize: 15, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
-  chipTextWarn: { color: Palette.go },
-  steps: { marginTop: Spacing.four, flexDirection: 'row', gap: Spacing.three },
-  step: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  stepDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: Palette.line, alignItems: 'center', justifyContent: 'center', backgroundColor: Palette.white },
-  stepDotCurrent: { borderColor: Palette.go, backgroundColor: Palette.go },
-  stepDotDone: { borderColor: Palette.lichen, backgroundColor: Palette.lichen },
-  stepNumber: { color: Palette.inkSoft, fontFamily: Fonts.display, fontWeight: '800', fontSize: 15, lineHeight: 18 },
-  stepNumberCurrent: { color: Palette.white },
-  stepLabel: { ...Typography.caption, flex: 1, fontSize: 15, lineHeight: 19, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '600' },
-  stepLabelActive: { color: Palette.ink, fontWeight: '700' },
-  primary: { marginTop: Spacing.three },
+  primary: { marginTop: Spacing.four },
+  notice: { marginTop: Spacing.three, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  noticeText: { ...Typography.body, flex: 1, color: Palette.ink, fontFamily: Fonts.sans },
+  confirmation: { marginTop: Spacing.four, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  confirmationText: { ...Typography.body, flex: 1, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
+  contribute: { marginTop: Spacing.four },
   help: { ...Typography.body, marginTop: Spacing.twoHalf, color: Palette.inkSoft, fontFamily: Fonts.sans, textAlign: 'center' },
   saveError: { ...Typography.body, marginTop: Spacing.two, color: Palette.go, fontFamily: Fonts.sans, fontWeight: '700', textAlign: 'center' },
   retake: { minHeight: 52, marginTop: Spacing.three, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two },

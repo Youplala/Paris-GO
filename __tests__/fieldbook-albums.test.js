@@ -27,7 +27,10 @@ jest.mock('@/services/fieldbook', () => ({
 jest.mock('@/services/album-title-store', () => ({
   albumTitleStore: { list: async () => ({ '2026-07-14': 'Autour du Champ-de-Mars' }) },
 }));
-const mockStations = { findDetail: () => ({ kind: 'archive-1970', year: 1970, archiveLinks: [], archiveMetadata: [], images: [] }) };
+const mockStations = {
+  findDetail: () => ({ kind: 'archive-1970', year: 1970, archiveLinks: [], archiveMetadata: [], images: [] }),
+  findStation: () => ({ frameCount: 32 }),
+};
 jest.mock('@/providers/stations-provider', () => ({ useStations: () => mockStations }));
 jest.mock('react-native-safe-area-context', () => {
   const { View: MockView } = require('react-native');
@@ -44,8 +47,9 @@ it('ouvre le carnet sur les balades, titres choisis compris, et bascule vers les
   await act(async () => { renderer = create(<FieldbookScreen />); });
   await act(async () => {});
   expect(texts()).toEqual(expect.arrayContaining([
-    'Carnet', '2', 'balades', '3', 'reprises', 'Balades · 2', 'Photos · 3',
-    'Autour du Champ-de-Mars', 'Balade du 21 juin 2025', '2 reprises', 'Secteur 995',
+    'Carnet', '2 balades · 3 photos', 'Balades · 2', 'Photos · 3',
+    'Autour du Champ-de-Mars', 'Balade du 21 juin 2025', '2 photos', 'Secteur 995',
+    'MES BADGES', '1/3', 'Première reprise', '3/10', 'Secteur complété',
   ]));
 
   const album = renderer.root.find((node) => typeof node.props.onPress === 'function'
@@ -57,7 +61,8 @@ it('ouvre le carnet sur les balades, titres choisis compris, et bascule vers les
     && typeof node.props.onPress === 'function'
     && node.findAllByType(Text).some((text) => [].concat(text.props.children).join('') === 'Photos · 3'));
   await act(async () => photosTab.props.onPress());
-  expect(texts()).toEqual(expect.arrayContaining(['Secteur 995 · photo 1', 'À déposer']));
+  expect(texts()).toEqual(expect.arrayContaining(['Secteur 995 · photo 1']));
+  expect(texts()).not.toContain('À déposer');
   expect(texts().some((text) => /^14 juil\./.test(text))).toBe(true);
 });
 
@@ -70,11 +75,11 @@ it('ouvre les actions d’une reprise depuis la grille des photos', async () => 
     && node.findAllByType(Text).some((text) => [].concat(text.props.children).join('') === 'Photos · 3'));
   await act(async () => photosTab.props.onPress());
   const tile = renderer.root.findAll((node) => typeof node.props.onPress === 'function'
-    && (node.props.accessibilityHint ?? '') === 'Ouvre les actions de cette reprise')[0];
+    && (node.props.accessibilityHint ?? '') === 'Ouvre les actions de cette photo')[0];
   await act(async () => tile.props.onPress());
   expect(sheet).toHaveBeenCalledWith(
     expect.objectContaining({
-      options: ['Comparer avec la photo d’archive', 'Reprendre le dépôt', 'Partager', 'Supprimer', 'Annuler'],
+      options: ['Comparer avec la photo d’archive', 'Contribuer à l’Observatoire', 'Partager', 'Supprimer', 'Annuler'],
       destructiveButtonIndex: 3,
       cancelButtonIndex: 4,
     }),

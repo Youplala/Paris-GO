@@ -11,7 +11,8 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { Fonts, Palette, Spacing } from '@/constants/theme';
+import { YearPill } from '@/components/ui/year-pill';
+import { Fonts, Palette, Radius, Spacing } from '@/constants/theme';
 
 export type AlbumStep = {
   key: string;
@@ -142,9 +143,11 @@ function StepCard({ step, index, total, width, interval, scrollX, showArchive, o
         {SHADES.map((height) => (
           <View key={height} pointerEvents="none" style={[styles.shade, { height }]} />
         ))}
-        <View style={[styles.yearPill, showArchive ? styles.yearArchive : styles.yearToday]}>
-          <Text style={styles.yearText}>{showArchive ? step.referenceYear : step.currentYear}</Text>
-        </View>
+        <YearPill
+          label={showArchive ? step.referenceYear : step.currentYear}
+          tone={showArchive ? 'archive' : 'today'}
+          style={styles.yearPill}
+        />
         <View style={styles.copy}>
           <Text style={styles.title} numberOfLines={1}>{step.title}</Text>
           <Text style={styles.subtitle} numberOfLines={1}>{step.subtitle}</Text>
@@ -176,17 +179,14 @@ const SHADES = Array.from({ length: 10 }, (_, step) => Math.round(150 * (1 - ste
 const styles = StyleSheet.create({
   card: {
     height: CARD_HEIGHT,
-    borderRadius: 30,
+    borderRadius: Radius.large,
     overflow: 'hidden',
     backgroundColor: Palette.blueDeep,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.22)',
   },
   shade: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(8, 17, 22, 0.1)' },
-  yearPill: { position: 'absolute', top: Spacing.three, left: Spacing.three, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  yearArchive: { backgroundColor: Palette.copper },
-  yearToday: { backgroundColor: Palette.parisBlue },
-  yearText: { color: Palette.white, fontFamily: Fonts.display, fontWeight: '800', fontSize: 14, lineHeight: 17 },
+  yearPill: { position: 'absolute', top: Spacing.three, left: Spacing.three },
   copy: { position: 'absolute', left: Spacing.threeHalf, right: Spacing.threeHalf, bottom: Spacing.threeHalf },
   title: { color: Palette.white, fontFamily: Fonts.display, fontWeight: '800', fontSize: 24, lineHeight: 27 },
   subtitle: { marginTop: 2, color: 'rgba(255, 255, 255, 0.86)', fontFamily: Fonts.sans, fontWeight: '600', fontSize: 14, lineHeight: 19 },
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     right: Spacing.twoHalf,
     width: 68,
     height: 52,
-    borderRadius: 14,
+    borderRadius: Radius.small,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: Palette.white,
@@ -215,5 +215,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 3,
   },
-  insetText: { color: Palette.white, fontFamily: Fonts.display, fontWeight: '800', fontSize: 11, lineHeight: 13 },
+  insetText: { color: Palette.white, fontFamily: Fonts.display, fontWeight: '800', fontSize: 13, lineHeight: 16 },
 });

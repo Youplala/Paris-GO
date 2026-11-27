@@ -1,21 +1,28 @@
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo } from 'react';
+import { Image } from 'expo-image';
+import { useMemo, useState } from 'react';
 import {
+  Keyboard,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BeforeAfterSlider } from '@/components/before-after-slider';
+import { ContributorAvatar } from '@/components/contributor-avatar';
+import { ContributorRow } from '@/components/contributor-row';
 import { ParisGoBadge } from '@/components/paris-go-badge';
+import { PrimaryButton } from '@/components/primary-button';
 import { StationCard } from '@/components/station-card';
-import { Fonts, Palette, Radius, Shadow, Spacing, TabBarClearance, Typography } from '@/constants/theme';
+import { Illustrations } from '@/constants/illustrations';
+import { Fonts, HitSize, Kicker, Palette, Radius, Shadow, Spacing, TabBarClearance, Typography } from '@/constants/theme';
 
 import { useStations } from '@/providers/stations-provider';
 import {
@@ -24,21 +31,11 @@ import {
 } from '@/services/collective-content';
 
 import type { StationDetail } from '@/types/station';
-import { formatContributorName } from '@/utils/community-stats';
+import { formatContributorName, searchContributors } from '@/utils/community-stats';
 import { mappingStatus } from '@/utils/mapping-coverage';
 
-const PARTICLES = ['de', 'du', 'des', 'le', 'la'];
-
-/** Initiales lisibles pour l'avatar, calculées sur le nom déjà réduit par `formatContributorName`. */
-function initialsFor(displayName: string) {
-  return displayName
-    .split(' ')
-    .filter(Boolean)
-    .filter((part) => !PARTICLES.includes(part.toLocaleLowerCase('fr-FR')))
-    .slice(0, 2)
-    .map((part) => part[0]?.toLocaleUpperCase('fr-FR'))
-    .join('');
-}
+/** Nombre de personnes montrées directement sous le champ de recherche. */
+const SEARCH_PREVIEW = 8;
 
 function LiveComparisonCard({
   detail,
@@ -91,9 +88,12 @@ export function CollectiveScreen() {
     coverage,
     stats,
     publishedSubmissions,
+    findContributorSubmissions,
     refresh,
     refreshing,
   } = useStations();
+  const [query, setQuery] = useState('');
+  const searching = query.trim().length > 0;
   // Les reprises publiées sont dans l'instantané : plus de requêtes en cascade pour les trouver.
   const feed = publishedSubmissions;
   const feedStatus: 'loading' | 'ready' | 'error' = feed.length ? 'ready' : 'error';
@@ -104,11 +104,39 @@ export function CollectiveScreen() {
   const remainingMissions = openStations.slice(0, 6);
   const localSuggestion = useMemo(() => buildLocalSuggestion(openStations), [openStations]);
   const snapshotDate = formatSnapshotDate(snapshotVersion);
+  // Malgré son nom historique, topContributors contient tous les auteurs du relevé, du plus actif
+  // au moins actif.
+  const matches = useMemo(
+    () => (searching ? searchContributors(stats.topContributors, query) : []),
+    [searching, stats.topContributors, query],
+  );
+  const results = useMemo(
+    () =>
+      matches.slice(0, SEARCH_PREVIEW).map((contributor) => ({
+        ...contributor,
+        displayName: formatContributorName(contributor.name),
+        photos: findContributorSubmissions(contributor.name).slice(0, 4),
+      })),
+    [matches, findContributorSubmissions],
+  );
+  const percentageLabel = coverage.percentage.toLocaleString('fr-FR');
+
+  const openContributor = (name: string) => {
+    void Haptics.selectionAsync();
+    Keyboard.dismiss();
+    router.push({ pathname: '/contributor/[name]', params: { name } });
+  };
+  const openStation = (id: string) => {
+    Keyboard.dismiss();
+    router.push({ pathname: '/station/[id]', params: { id } });
+  };
 
   return (
     <View style={styles.screen}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -119,471 +147,251 @@ export function CollectiveScreen() {
         contentContainerStyle={styles.content}>
         <SafeAreaView edges={['top']} style={styles.header}>
           <View style={styles.brandRow}>
-            <Text accessibilityRole="header" style={styles.brand}>Communauté</Text>
+            <View style={styles.titleBlock}>
+              <Text style={styles.kicker}>Paris GO</Text>
+              <Text accessibilityRole="header" style={styles.brand}>Communauté</Text>
+            </View>
             <Pressable accessibilityRole="button" accessibilityLabel="Voir les statistiques"
               onPress={() => router.push('/coverage')}
-              style={({ pressed }) => [styles.statsLink, pressed && styles.contributorsPressed]}>
-              <SymbolView name="chart.bar.fill" size={18} tintColor={Palette.parisBlue} />
-              <Text style={styles.statsLinkText}>Statistiques</Text>
+              style={({ pressed }) => [styles.statsLink, pressed && styles.pressedSoft]}>
+              <SymbolView name="chart.bar.fill" size={18} tintColor={Palette.ink} />
+              <Text style={styles.statsLinkText}>Bilan</Text>
             </Pressable>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Rechercher un contributeur"
-            onPress={() => router.push('/contributors')}
-            style={({ pressed }) => [styles.searchLink, pressed && styles.contributorsPressed]}>
+          {/* La recherche répond dès la première lettre : on retrouve une personne par son
+              prénom, et ses dernières photos avec elle. */}
+          <View style={styles.search}>
             <SymbolView name="magnifyingglass" size={19} tintColor={Palette.inkSoft} />
-            <Text style={styles.searchLinkText}>Trouver un contributeur</Text>
-            <SymbolView name="chevron.right" size={13} tintColor={Palette.inkSoft} />
-          </Pressable>
+            <TextInput
+              accessibilityLabel="Chercher une personne par son prénom"
+              placeholder="Chercher un prénom"
+              placeholderTextColor={Palette.inkSoft}
+              value={query}
+              onChangeText={setQuery}
+              autoCorrect={false}
+              autoCapitalize="words"
+              returnKeyType="search"
+              onSubmitEditing={Keyboard.dismiss}
+              clearButtonMode="never"
+              style={styles.searchInput}
+            />
+            {searching ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="Effacer la recherche"
+                onPress={() => setQuery('')} style={styles.searchClear}>
+                <SymbolView name="xmark.circle.fill" size={20} tintColor={Palette.inkSoft} />
+              </Pressable>
+            ) : null}
+          </View>
         </SafeAreaView>
 
-        {/* La comparaison avant/après est le sujet même de l'app : elle occupe le haut de la
-            liste à fond perdu, sans carte blanche autour. */}
-        {feedStatus === 'ready' ? (
-          <View style={styles.feed}>{feed.map((detail) => (
-            <LiveComparisonCard
-              key={detail.id}
-              detail={detail}
-              onOpen={() =>
-                router.push({ pathname: '/station/[id]', params: { id: detail.id } })
-              }
-            />
-          ))}</View>
-        ) : (
-          <View style={styles.feedEmpty}>
-            <SymbolView name="photo.on.rectangle.angled" size={24} tintColor={Palette.inkSoft} />
-            <Text style={styles.loadingTitle}>Aucune photo refaite pour l’instant</Text>
-            <Text style={styles.loadingCopy}>
-              Les comparaisons avant/après apparaîtront ici dès qu’une photo sera publiée.
+        {searching ? (
+          <View>
+            <Text accessibilityLiveRegion="polite" style={styles.resultCount}>
+              {matches.length
+                ? `${matches.length} ${matches.length > 1 ? 'personnes trouvées' : 'personne trouvée'}`
+                : 'Personne ne porte ce prénom dans le relevé'}
             </Text>
-          </View>
-        )}
-
-        <View style={styles.stats}>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>
-              {coverage.published1970.toLocaleString('fr-FR')}
-            </Text>
-            <Text style={styles.statLabel}>PHOTOS REFAITES</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{coverage.percentage}%</Text>
-            <Text style={styles.statLabel}>DU FONDS 1970</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>
-              {coverage.remaining1970.toLocaleString('fr-FR')}
-            </Text>
-            <Text style={styles.statLabel}>À RETROUVER</Text>
-          </View>
-        </View>
-
-        <View style={styles.contributors}>
-          <Pressable
-            accessibilityLabel={`Voir le bilan de la communauté : ${stats.contributorCount} contributeurs et ${stats.recapturesLast30Days} photos publiées ce mois-ci`}
-            accessibilityRole="button"
-            onPress={() => {
-              void Haptics.selectionAsync();
-              router.push('/coverage');
-            }}
-            style={({ pressed }) => [
-              styles.contributorsHead,
-              pressed && styles.contributorsPressed,
-            ]}>
-            <Text style={styles.contributorsKicker}>
-              {stats.contributorCount} CONTRIBUTEURS · {stats.recapturesLast30Days} PHOTOS CE MOIS-CI
-            </Text>
-            <View style={styles.contributorsAction}>
-              <Text style={styles.contributorsActionText}>Le bilan</Text>
-              <SymbolView name="chevron.right" size={12} tintColor={Palette.parisBlue} />
-            </View>
-          </Pressable>
-          <View style={styles.contributorsList}>
-            {stats.topContributors.slice(0, 3).map((contributor) => {
-              const displayName = formatContributorName(contributor.name);
-              return (
-                <Pressable
-                  key={contributor.name}
-                  accessibilityLabel={`Voir le profil de ${displayName}, ${contributor.count} photos`}
-                  accessibilityRole="button"
-                  onPress={() => {
-                    void Haptics.selectionAsync();
-                    router.push({
-                      pathname: '/contributor/[name]',
-                      params: { name: contributor.name },
-                    });
-                  }}
-                  style={({ pressed }) => [
-                    styles.contributorChip,
-                    pressed && styles.contributorChipPressed,
-                  ]}>
-                  <Text style={styles.contributorInitials}>{initialsFor(displayName)}</Text>
-                  <Text style={styles.contributorName} numberOfLines={1}>
-                    {displayName}
-                  </Text>
-                  <Text style={styles.contributorCount}>{contributor.count}</Text>
-                  <SymbolView name="chevron.right" size={11} tintColor={Palette.inkSoft} />
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Photos à retrouver</Text>
-          <SymbolView name="scope" size={18} tintColor={Palette.parisBlue} />
-        </View>
-
-        <ScrollView
-          horizontal
-          contentContainerStyle={styles.missionRail}
-          decelerationRate="fast"
-          showsHorizontalScrollIndicator={false}>
-          {remainingMissions.map((station) => (
-            <StationCard key={station.id} station={station} compact />
-          ))}
-        </ScrollView>
-
-        {localSuggestion ? (
-          <View style={styles.walkCard}>
-            <View style={styles.suggestionMark}>
-              <SymbolView name="map.fill" size={28} tintColor={Palette.parisBlue} />
-              <Text style={styles.suggestionCount}>{localSuggestion.missionCount}</Text>
-              <Text style={styles.suggestionCountLabel}>POINTS DE VUE OUVERTS</Text>
-            </View>
-            <View style={styles.walkBody}>
-              <Text style={styles.walkKicker}>SUGGESTION LOCALE · {localSuggestion.sector}</Text>
-              <Text style={styles.walkTitle}>Explorer ce secteur</Text>
-              <Text style={styles.walkCopy}>
-                Sélection calculée sur cet iPhone à partir des missions du relevé du {snapshotDate}.
+            {matches.length ? (
+              <View style={styles.results}>
+                {results.map((contributor) => (
+                  <ContributorRow
+                    key={contributor.name}
+                    displayName={contributor.displayName}
+                    count={contributor.count}
+                    photos={contributor.photos}
+                    onOpen={() => openContributor(contributor.name)}
+                    onOpenPhoto={(photo) => openStation(photo.id)}
+                  />
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.resultHint}>
+                Essayez une autre orthographe. Seules les personnes dont une photo est publiée
+                apparaissent ici.
               </Text>
+            )}
+            {matches.length > SEARCH_PREVIEW ? (
+              <PrimaryButton
+                label={`Voir les ${matches.length} personnes`}
+                variant="outline"
+                onPress={() => router.push({ pathname: '/contributors', params: { q: query.trim() } })}
+                style={styles.moreButton}
+              />
+            ) : null}
+          </View>
+        ) : (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text accessibilityRole="header" style={styles.sectionTitle}>Les plus actifs</Text>
               <Pressable
-                accessibilityLabel={`Voir un point de départ dans le ${localSuggestion.sector}`}
-                onPress={() =>
-                  router.push({
-                    pathname: '/station/[id]',
-                    params: { id: localSuggestion.stationId },
-                  })
-                }
-                style={({ pressed }) => [styles.walkAction, pressed && styles.pressed]}>
-                <Text style={styles.walkActionText}>Voir un point de départ</Text>
-                <SymbolView name="arrow.right" size={14} tintColor={Palette.white} />
+                accessibilityRole="link"
+                accessibilityLabel={`Voir les ${stats.contributorCount} personnes`}
+                onPress={() => router.push('/contributors')}
+                style={({ pressed }) => [styles.sectionLink, pressed && styles.pressedSoft]}>
+                <Text style={styles.sectionLinkText}>Tout le monde</Text>
+                <SymbolView name="chevron.right" size={12} tintColor={Palette.go} />
               </Pressable>
             </View>
-          </View>
-        ) : null}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.peopleRail}>
+              {stats.topContributors.slice(0, 8).map((contributor) => {
+                const displayName = formatContributorName(contributor.name);
+                return (
+                  <Pressable
+                    key={contributor.name}
+                    accessibilityLabel={`Voir les photos de ${displayName}, ${contributor.count} photos`}
+                    accessibilityRole="button"
+                    onPress={() => openContributor(contributor.name)}
+                    style={({ pressed }) => [styles.person, pressed && styles.pressedSoft]}>
+                    <ContributorAvatar name={displayName} size={60} />
+                    <Text style={styles.personName} numberOfLines={1}>{displayName}</Text>
+                    <Text style={styles.personCount}>{contributor.count.toLocaleString('fr-FR')} photos</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
 
-        <View style={styles.prototypeNote}>
-          <SymbolView name="info.circle" size={22} tintColor={Palette.parisBlue} />
-          <Text style={styles.prototypeText}>
-            Données Observatoire : relevé public du {snapshotDate}. Archives 1970 : Bibliothèques
-            spécialisées de la Ville de Paris. Les suggestions sont calculées localement, sans
-            activité sociale ni envoi depuis l’app.
-          </Text>
-        </View>
+            <View style={styles.sectionHeader}>
+              <Text accessibilityRole="header" style={styles.sectionTitle}>Dernières photos refaites</Text>
+            </View>
+            {/* La comparaison avant/après est le sujet même de l'app : elle occupe la largeur,
+                sans carte blanche autour. */}
+            {feedStatus === 'ready' ? (
+              <View style={styles.feed}>{feed.map((detail) => (
+                <LiveComparisonCard
+                  key={detail.id}
+                  detail={detail}
+                  onOpen={() =>
+                    router.push({ pathname: '/station/[id]', params: { id: detail.id } })
+                  }
+                />
+              ))}</View>
+            ) : (
+              <View style={styles.feedEmpty}>
+                <SymbolView name="photo.on.rectangle.angled" size={24} tintColor={Palette.inkSoft} />
+                <Text style={styles.loadingTitle}>Aucune photo refaite pour l’instant</Text>
+                <Text style={styles.loadingCopy}>
+                  Les comparaisons avant/après apparaîtront ici dès qu’une photo sera publiée.
+                </Text>
+              </View>
+            )}
+
+            {/* Le bilan collectif tient en une ligne, comme sur l'accueil. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Bilan : ${coverage.published1970.toLocaleString('fr-FR')} photos refaites par ${stats.contributorCount.toLocaleString('fr-FR')} personnes, ${percentageLabel} % des photos de 1970. Voir le bilan`}
+              onPress={() => {
+                void Haptics.selectionAsync();
+                router.push('/coverage');
+              }}
+              style={({ pressed }) => [styles.progress, pressed && styles.pressedSoft]}>
+              <Image source={Illustrations.parisProgress} style={styles.progressIllustration} contentFit="contain" />
+              <View style={styles.progressCopy}>
+                <Text style={styles.progressLabel}>
+                  <Text style={styles.progressValue}>{coverage.published1970.toLocaleString('fr-FR')}</Text> photos refaites
+                  par {stats.contributorCount.toLocaleString('fr-FR')} personnes
+                </Text>
+                <Text style={styles.progressHint}>Voir le bilan</Text>
+              </View>
+              <SymbolView name="chevron.right" size={14} tintColor={Palette.inkSoft} />
+            </Pressable>
+
+            <View style={styles.sectionHeader}>
+              <Text accessibilityRole="header" style={styles.sectionTitle}>Photos à retrouver</Text>
+            </View>
+            <ScrollView
+              horizontal
+              contentContainerStyle={styles.missionRail}
+              decelerationRate="fast"
+              showsHorizontalScrollIndicator={false}>
+              {remainingMissions.map((station) => (
+                <StationCard key={station.id} station={station} compact />
+              ))}
+            </ScrollView>
+
+            {localSuggestion ? (
+              <View style={styles.walkCard}>
+                <Text style={styles.walkKicker}>SUGGESTION LOCALE · {localSuggestion.sector}</Text>
+                <Text style={styles.walkTitle}>Explorer ce secteur</Text>
+                <Text style={styles.walkCopy}>
+                  {localSuggestion.missionCount} {localSuggestion.missionCount > 1 ? 'photos de 1970 attendent' : 'photo de 1970 attend'} encore
+                  d’être refaites ici.
+                </Text>
+                <PrimaryButton
+                  label="Voir un point de départ"
+                  icon="arrow.right"
+                  variant="secondary"
+                  onPress={() =>
+                    router.push({
+                      pathname: '/station/[id]',
+                      params: { id: localSuggestion.stationId },
+                    })
+                  }
+                  style={styles.walkAction}
+                />
+              </View>
+            ) : null}
+
+            <Text style={styles.sourceNote}>
+              Données Observatoire : relevé public du {snapshotDate}. Archives 1970 : Bibliothèques
+              spécialisées de la Ville de Paris.
+            </Text>
+          </>
+        )}
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Palette.fog,
-  },
-  content: {
-    paddingBottom: TabBarClearance,
-  },
-  header: {
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.three,
-  },
-  brandRow: {
-    minHeight: 62,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-  },
-  brand: {
-    ...Typography.title,
-    color: Palette.parisBlue,
-    fontFamily: Fonts.display,
-    fontWeight: '900',
-    fontSize: 28,
-    lineHeight: 34,
-    flex: 1,
-  },
-  statsLink: { minHeight: 44, paddingHorizontal: Spacing.twoHalf, borderRadius: Radius.pill, backgroundColor: Palette.white, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  statsLinkText: { ...Typography.caption, fontFamily: Fonts.sans, fontWeight: '700', color: Palette.parisBlue },
-  searchLink: { minHeight: 48, paddingHorizontal: Spacing.three, marginTop: Spacing.two, borderRadius: Radius.medium, backgroundColor: Palette.white, flexDirection: 'row', alignItems: 'center', gap: Spacing.twoHalf },
-  searchLinkText: { ...Typography.body, fontFamily: Fonts.sans, color: Palette.inkSoft, flex: 1 },
+  screen: { flex: 1, backgroundColor: Palette.fog },
+  content: { paddingBottom: TabBarClearance },
+  header: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two },
+  brandRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
+  titleBlock: { flex: 1 },
+  kicker: { ...Kicker, color: Palette.go },
+  brand: { ...Typography.display, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
+  statsLink: { minHeight: HitSize, paddingHorizontal: Spacing.three, borderRadius: Radius.pill, backgroundColor: Palette.white, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, ...Shadow.card },
+  statsLinkText: { ...Typography.body, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
+  search: { minHeight: 52, marginTop: Spacing.three, paddingLeft: Spacing.three, borderRadius: Radius.medium, backgroundColor: Palette.white, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderWidth: 1, borderColor: Palette.line },
+  searchInput: { ...Typography.body, flex: 1, minHeight: 52, color: Palette.ink, fontFamily: Fonts.sans, paddingVertical: Spacing.two },
+  searchClear: { width: HitSize, height: HitSize, alignItems: 'center', justifyContent: 'center' },
+  resultCount: { ...Typography.caption, marginTop: Spacing.three, marginBottom: Spacing.two, marginHorizontal: Spacing.three, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '600' },
+  results: { gap: StyleSheet.hairlineWidth, backgroundColor: Palette.line },
+  resultHint: { ...Typography.body, marginHorizontal: Spacing.three, color: Palette.inkSoft, fontFamily: Fonts.sans },
+  moreButton: { marginHorizontal: Spacing.three, marginTop: Spacing.three },
+  sectionHeader: { marginTop: Spacing.four, marginBottom: Spacing.twoHalf, paddingHorizontal: Spacing.three, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.two },
+  sectionTitle: { ...Typography.title, flex: 1, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
+  sectionLink: { minHeight: HitSize, flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  sectionLinkText: { ...Typography.body, color: Palette.go, fontFamily: Fonts.sans, fontWeight: '700' },
+  peopleRail: { paddingHorizontal: Spacing.three, gap: Spacing.two },
+  person: { width: 96, paddingVertical: Spacing.twoHalf, paddingHorizontal: Spacing.one, borderRadius: Radius.medium, backgroundColor: Palette.white, alignItems: 'center', gap: Spacing.one },
+  personName: { ...Typography.caption, marginTop: Spacing.one, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
+  personCount: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   feed: { backgroundColor: Palette.blueMist },
-  sectionHeader: {
-    marginTop: Spacing.five,
-    marginBottom: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    ...Typography.title,
-    color: Palette.ink,
-    fontFamily: Fonts.display,
-  },
   // Photo pleine largeur, légende attachée, puis un espace distinct avant la suivante.
-  activityCard: {
-    marginBottom: Spacing.twoHalf,
-    borderBottomWidth: 1,
-    borderBottomColor: Palette.line,
-  },
-  activityCardPressed: {
-    opacity: 0.92,
-  },
-  activityBody: {
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.twoHalf,
-    paddingBottom: Spacing.four,
-    backgroundColor: Palette.white,
-  },
-  activityTitle: {
-    ...Typography.title,
-    color: Palette.ink,
-    fontFamily: Fonts.display,
-  },
-  activityMetaRow: {
-    marginTop: Spacing.half,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-  },
-  activityMeta: {
-    ...Typography.body,
-    flex: 1,
-    color: Palette.inkSoft,
-    fontFamily: Fonts.sans,
-  },
-  feedEmpty: {
-    marginHorizontal: Spacing.three,
-    marginBottom: Spacing.four,
-    alignItems: 'center',
-  },
-  loadingTitle: {
-    ...Typography.title,
-    marginTop: Spacing.three,
-    color: Palette.ink,
-    fontFamily: Fonts.display,
-  },
-  loadingCopy: {
-    ...Typography.body,
-    marginTop: Spacing.one,
-    color: Palette.inkSoft,
-    fontFamily: Fonts.sans,
-    textAlign: 'center',
-  },
-  stats: {
-    marginHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
-    borderRadius: Radius.large,
-    backgroundColor: Palette.parisBlue,
-    flexDirection: 'row',
-  },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statNumber: {
-    ...Typography.title,
-    color: Palette.white,
-    fontFamily: Fonts.display,
-    fontWeight: '900',
-  },
-  statLabel: {
-    ...Typography.caption,
-    marginTop: Spacing.half,
-    color: Palette.blueMist,
-    fontFamily: Fonts.display,
-    fontWeight: '800',
-    letterSpacing: 0.45,
-  },
-  statDivider: {
-    width: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.24)',
-  },
-  contributors: {
-    marginTop: Spacing.three,
-    marginHorizontal: Spacing.three,
-    padding: Spacing.three,
-    borderRadius: Radius.large,
-    backgroundColor: Palette.white,
-    gap: Spacing.twoHalf,
-    ...Shadow.card,
-  },
-  contributorsPressed: {
-    opacity: 0.75,
-  },
-  contributorsHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-  },
-  contributorsKicker: {
-    ...Typography.caption,
-    flex: 1,
-    color: Palette.parisBlue,
-    fontFamily: Fonts.display,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  contributorsAction: {
-    minHeight: 28,
-    paddingHorizontal: Spacing.two,
-    borderRadius: Radius.pill,
-    backgroundColor: Palette.blueMist,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-  },
-  contributorsActionText: {
-    ...Typography.body,
-    color: Palette.parisBlue,
-    fontWeight: '800',
-  },
-  contributorsList: {
-    gap: Spacing.two,
-  },
-  contributorChip: {
-    minHeight: 36,
-    marginHorizontal: -Spacing.one,
-    paddingHorizontal: Spacing.one,
-    borderRadius: Radius.small,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  contributorChipPressed: {
-    backgroundColor: Palette.blueMist,
-  },
-  contributorInitials: {
-    ...Typography.body,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Palette.blueMist,
-    color: Palette.parisBlue,
-    fontWeight: '900',
-    textAlign: 'center',
-    lineHeight: 32,
-  },
-  contributorName: {
-    ...Typography.body,
-    flex: 1,
-    color: Palette.ink,
-    fontWeight: '600',
-  },
-  contributorCount: {
-    ...Typography.body,
-    color: Palette.inkSoft,
-    fontFamily: Fonts.display,
-    fontWeight: '800',
-  },
+  activityCard: { marginBottom: Spacing.twoHalf, borderBottomWidth: 1, borderBottomColor: Palette.line },
+  activityCardPressed: { opacity: 0.92 },
+  activityBody: { paddingHorizontal: Spacing.three, paddingTop: Spacing.twoHalf, paddingBottom: Spacing.four, backgroundColor: Palette.white },
+  activityTitle: { ...Typography.title, color: Palette.ink, fontFamily: Fonts.display },
+  activityMetaRow: { marginTop: Spacing.half, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
+  activityMeta: { ...Typography.body, flex: 1, color: Palette.inkSoft, fontFamily: Fonts.sans },
+  feedEmpty: { marginHorizontal: Spacing.three, marginBottom: Spacing.four, alignItems: 'center' },
+  loadingTitle: { ...Typography.title, marginTop: Spacing.three, color: Palette.ink, fontFamily: Fonts.display },
+  loadingCopy: { ...Typography.body, marginTop: Spacing.one, color: Palette.inkSoft, fontFamily: Fonts.sans, textAlign: 'center' },
+  progress: { marginHorizontal: Spacing.three, marginTop: Spacing.three, minHeight: 64, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three, borderRadius: Radius.large, backgroundColor: Palette.white, flexDirection: 'row', alignItems: 'center', gap: Spacing.twoHalf, ...Shadow.card },
+  progressIllustration: { width: 44, height: 44 },
+  progressCopy: { flex: 1 },
+  progressLabel: { ...Typography.body, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '600' },
+  progressValue: { color: Palette.go, fontFamily: Fonts.display, fontWeight: '800' },
+  progressHint: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   // Bord à bord : le rail de vignettes n'a pas de marge de page, seul le texte des têtes de
   // section en garde une.
-  missionRail: {
-    gap: Spacing.three,
-    paddingBottom: Spacing.one,
-  },
-  walkCard: {
-    marginTop: Spacing.four,
-    marginHorizontal: Spacing.three,
-    borderRadius: Radius.large,
-    overflow: 'hidden',
-    backgroundColor: Palette.blueDeep,
-    ...Shadow.card,
-  },
-  suggestionMark: {
-    height: 170,
-    backgroundColor: Palette.blueMist,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  suggestionCount: {
-    ...Typography.title,
-    marginTop: Spacing.one,
-    color: Palette.parisBlue,
-    fontFamily: Fonts.display,
-    fontWeight: '900',
-  },
-  suggestionCountLabel: {
-    ...Typography.caption,
-    color: Palette.inkSoft,
-    fontFamily: Fonts.display,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  walkBody: {
-    padding: Spacing.three,
-  },
-
-  walkKicker: {
-    ...Typography.caption,
-    color: Palette.brass,
-    fontFamily: Fonts.display,
-    fontWeight: '900',
-    letterSpacing: 0.6,
-  },
-
-  walkTitle: {
-    ...Typography.title,
-    marginTop: Spacing.two,
-    color: Palette.white,
-    fontFamily: Fonts.display,
-  },
-  walkCopy: {
-    ...Typography.body,
-    marginTop: Spacing.two,
-    color: Palette.blueMist,
-    fontFamily: Fonts.sans,
-  },
-  walkAction: {
-    marginTop: Spacing.three,
-    minHeight: 46,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Radius.pill,
-    backgroundColor: Palette.copper,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
-  },
-  walkActionText: {
-    ...Typography.body,
-    color: Palette.white,
-    fontWeight: '800',
-  },
-  prototypeNote: {
-    margin: Spacing.three,
-    marginTop: Spacing.four,
-    padding: Spacing.three,
-    borderRadius: Radius.medium,
-    borderWidth: 1,
-    borderColor: Palette.line,
-    flexDirection: 'row',
-    gap: Spacing.three,
-  },
-  prototypeText: {
-    ...Typography.caption,
-    flex: 1,
-    color: Palette.inkSoft,
-    fontFamily: Fonts.sans,
-  },
-  pressed: {
-    opacity: 0.84,
-    transform: [{ scale: 0.985 }],
-  },
+  missionRail: { gap: Spacing.three, paddingBottom: Spacing.one },
+  walkCard: { marginTop: Spacing.four, marginHorizontal: Spacing.three, padding: Spacing.three, borderRadius: Radius.large, backgroundColor: Palette.white, ...Shadow.card },
+  walkKicker: { ...Kicker, color: Palette.go },
+  walkTitle: { ...Typography.title, marginTop: Spacing.one, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
+  walkCopy: { ...Typography.body, marginTop: Spacing.one, color: Palette.inkSoft, fontFamily: Fonts.sans },
+  walkAction: { marginTop: Spacing.three },
+  sourceNote: { ...Typography.caption, margin: Spacing.three, marginTop: Spacing.four, color: Palette.inkSoft, fontFamily: Fonts.sans, textAlign: 'center' },
+  pressedSoft: { opacity: 0.75 },
 });

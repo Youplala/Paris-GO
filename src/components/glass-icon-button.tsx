@@ -1,10 +1,10 @@
 import { GlassView } from 'expo-glass-effect';
 import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { SFSymbol } from 'sf-symbols-typescript';
 
 import { supportsLiquidGlass } from '@/components/glass-surface';
-import { Palette } from '@/constants/theme';
+import { Fonts, HitSize, Palette, Spacing, Surface, Typography } from '@/constants/theme';
 
 /**
  * Verre sombre posé sur la carte : `colorScheme` forcé en sombre pour que les boutons gardent la
@@ -25,7 +25,7 @@ export function GlassBackdrop({ radius, prominent }: { radius: number; prominent
       colorScheme="dark"
       glassEffectStyle="regular"
       isInteractive
-      tintColor={prominent ? 'rgba(204, 72, 28, 0.85)' : 'rgba(13, 42, 60, 0.42)'}
+      tintColor={prominent ? 'rgba(204, 72, 28, 0.85)' : Surface.glassDark}
       style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
     />
   );
@@ -81,12 +81,41 @@ export function GlassButtonColumn({ actions, size = 50 }: { actions: readonly Ic
 const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
   fallback: {
-    backgroundColor: 'rgba(13, 42, 60, 0.76)',
+    backgroundColor: Surface.glassFallback,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.28)',
+    borderColor: Surface.glassBorder,
   },
   prominentFallback: { backgroundColor: Palette.go },
   column: { paddingVertical: 4, overflow: 'hidden' },
   activeDot: { position: 'absolute', backgroundColor: Palette.go },
   pressed: { opacity: 0.8, transform: [{ scale: 0.94 }] },
+  labelButton: { minHeight: HitSize + 4, paddingHorizontal: Spacing.threeHalf, borderRadius: 24, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
+  labelText: { ...Typography.body, color: Palette.white, fontFamily: Fonts.sans, fontWeight: '700' },
 });
+
+/** Bouton libellé en verre sombre, posé sur la carte : l'action se lit, elle ne se devine pas. */
+export function GlassLabelButton({
+  systemImage,
+  label,
+  onPress,
+  prominent,
+  accessibilityLabel,
+}: {
+  systemImage: SFSymbol;
+  label: string;
+  onPress: () => void;
+  prominent?: boolean;
+  accessibilityLabel?: string;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.labelButton, pressed && styles.pressed]}>
+      <GlassBackdrop radius={24} prominent={prominent} />
+      <SymbolView name={systemImage} size={17} weight="semibold" tintColor={Palette.white} />
+      <Text style={styles.labelText}>{label}</Text>
+    </Pressable>
+  );
+}

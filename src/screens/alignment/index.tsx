@@ -7,6 +7,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import { StatusBar } from 'expo-status-bar';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -32,6 +33,9 @@ import Reanimated, {
 } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PrimaryButton } from '@/components/primary-button';
+import { IconButton } from '@/components/ui/icon-button';
+import { Illustrations } from '@/constants/illustrations';
 import { Fonts, Palette, Radius, Spacing, Typography } from '@/constants/theme';
 import { SIMULATED_CAMERA_IMAGE } from '@/constants/demo';
 
@@ -427,32 +431,27 @@ export function AlignmentScreen() {
     const canAskAgain = permission?.canAskAgain !== false;
     return (
       <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={styles.permissionScreen}>
-        <Pressable
-          accessibilityLabel="Fermer le viseur"
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.permissionClose, pressed && styles.pressed]}>
-          <SymbolView name="xmark" size={18} tintColor={Palette.white} />
-        </Pressable>
+        <StatusBar style="light" />
+        <IconButton icon="xmark" variant="media" accessibilityLabel="Fermer le viseur" onPress={() => router.back()} />
         <View style={styles.permissionCard}>
           {permissionLoading ? (
             <ActivityIndicator color={Palette.brass} size="large" />
           ) : (
-            <SymbolView name="camera.fill" size={34} tintColor={Palette.brass} />
+            <Image source={Illustrations.cameraPermission} style={styles.permissionIllustration} contentFit="contain" />
           )}
           <Text style={styles.permissionTitle}>
-            {permissionLoading ? 'Préparation de la caméra…' : 'Accès à la caméra requis'}
+            {permissionLoading ? 'Préparation de la caméra…' : 'Pour refaire cette photo'}
           </Text>
           <Text style={styles.permissionCopy}>
             {permissionLoading
               ? 'Paris GO vérifie l’autorisation avant d’ouvrir le viseur.'
               : canAskAgain
-                ? 'Autorisez Paris GO à utiliser la caméra pour afficher le vrai viseur et prendre votre photo.'
+                ? 'Autorisez la caméra pour cadrer la rue d’aujourd’hui sur la photo de 1970.'
                 : 'L’accès à la caméra est refusé. Ouvrez les Réglages iOS et autorisez la caméra pour Paris GO.'}
           </Text>
           {!permissionLoading ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: permissionLoading }}
+            <PrimaryButton
+              label={canAskAgain ? 'Autoriser la caméra' : 'Ouvrir les Réglages'}
               onPress={() => {
                 setCaptureError(undefined);
                 if (canAskAgain) {
@@ -465,11 +464,8 @@ export function AlignmentScreen() {
                   });
                 }
               }}
-              style={({ pressed }) => [styles.permissionButton, pressed && styles.pressed]}>
-              <Text style={styles.permissionButtonText}>
-                {canAskAgain ? 'Autoriser la caméra' : 'Ouvrir les Réglages'}
-              </Text>
-            </Pressable>
+              style={styles.permissionButton}
+            />
           ) : null}
           {captureError ? (
             <Text accessibilityLiveRegion="polite" style={styles.permissionError}>
@@ -628,6 +624,8 @@ export function AlignmentScreen() {
         const { width, height } = event.nativeEvent.layout;
         setViewfinderSize({ width, height });
       }}>
+      {/* Heure et batterie en clair sur le viseur sombre. */}
+      <StatusBar style="light" />
       {liveCamera ? (
         <CameraView
           ref={cameraRef}
@@ -870,14 +868,6 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     backgroundColor: Palette.black,
   },
-  permissionClose: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: Palette.inkSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   permissionCard: {
     flex: 1,
     maxWidth: 420,
@@ -886,6 +876,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.four,
   },
+  permissionIllustration: { width: 120, height: 120 },
   permissionTitle: {
     ...Typography.display,
     marginTop: Spacing.three,
@@ -901,19 +892,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   permissionButton: {
-    minHeight: 50,
     marginTop: Spacing.four,
-    paddingHorizontal: Spacing.four,
-    borderRadius: Radius.pill,
-    backgroundColor: Palette.brass,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  permissionButtonText: {
-    ...Typography.body,
-    color: Palette.blueDeep,
-    fontFamily: Fonts.sans,
-    fontWeight: '800',
+    alignSelf: 'stretch',
   },
   permissionError: {
     ...Typography.caption,

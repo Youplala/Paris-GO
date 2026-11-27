@@ -24,3 +24,14 @@ test('recherche dans les noms affichés, conserve les homonymes et accepte une r
   assert.deepEqual(community.searchContributors([], 'élodie'), []);
   assert.equal(contributors[0].name, 'Zoe DUMAS');
 });
+
+test('un prénom qui commence par la saisie passe avant un nom qui la contient', () => {
+  const contributors = [
+    { name: 'Pascal MARTIN', count: 9 },
+    { name: 'Alain PETIT', count: 2 },
+  ];
+  assert.deepEqual(
+    community.searchContributors(contributors, 'al').map(({ name }) => name),
+    ['Alain PETIT', 'Pascal MARTIN'],
+  );
+});

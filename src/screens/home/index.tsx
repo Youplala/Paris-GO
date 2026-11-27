@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -16,14 +17,16 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Illustrations } from '@/constants/illustrations';
+import { IconButton } from '@/components/ui/icon-button';
 import { AlbumCoverCard } from '@/components/album-cover-card';
 import { MissionCard } from '@/components/mission-card';
-import { ProgressBar } from '@/components/progress-bar';
 import { SourcePill } from '@/components/source-pill';
 import { StationCard } from '@/components/station-card';
 import { PRIVACY_POLICY_URL } from '@/constants/legal';
 import {
   Fonts,
+  HitSize,
   Kicker,
   Palette,
   Radius,
@@ -134,26 +137,17 @@ export function HomeScreen() {
                 accessibilityLabel="Ouvrir le carnet"
                 accessibilityRole="button"
                 onPress={() => router.push('/fieldbook')}
-                style={({ pressed }) => [styles.locationButton, pressed && styles.pressed]}>
-                <SymbolView name="book.closed.fill" size={20} tintColor={Palette.parisBlue} />
+                style={({ pressed }) => [styles.carnetButton, pressed && styles.pressed]}>
+                <SymbolView name="book.closed.fill" size={18} tintColor={Palette.ink} />
+                <Text style={styles.carnetText}>Carnet</Text>
               </Pressable>
-              <Pressable
-                accessibilityLabel="Utiliser ma position"
-                accessibilityRole="button"
-                accessibilityState={{ busy: locating, disabled: locating }}
-                disabled={locating}
-                onPress={handleLocate}
-                style={({ pressed }) => [
-                  styles.locationButton,
-                  locating && styles.locationButtonDisabled,
-                  pressed && styles.pressed,
-                ]}>
-                <SymbolView
-                  name={isPrecise ? 'location.fill' : 'location'}
-                  size={21}
-                  tintColor={Palette.parisBlue}
-                />
-              </Pressable>
+              <IconButton
+                icon={isPrecise ? 'location.fill' : 'location'}
+                accessibilityLabel={locating ? 'Recherche de votre position' : 'Utiliser ma position'}
+                onPress={() => {
+                  if (!locating) void handleLocate();
+                }}
+              />
             </View>
           </View>
 
@@ -169,36 +163,6 @@ export function HomeScreen() {
             </View>
           ) : null}
 
-          {/* La progression collective : ce que la campagne a déjà refait de Paris. */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Paris refait à ${percentageLabel} %. Voir où en est la carte`}
-            onPress={() => {
-              void Haptics.selectionAsync();
-              router.push('/coverage');
-            }}
-            style={({ pressed }) => [styles.progress, pressed && styles.pressedSoft]}>
-            <View style={styles.progressHead}>
-              <Text style={styles.progressLabel}>Paris refait à</Text>
-              <View style={styles.progressValueRow}>
-                <Text style={styles.progressValue}>{percentageLabel} %</Text>
-                <SymbolView name="chevron.right" size={13} tintColor={Palette.inkSoft} />
-              </View>
-            </View>
-            <ProgressBar percentage={coverage.percentage} height={10} />
-            <View style={styles.progressStats}>
-              {[
-                { value: coverage.published1970, label: 'photos refaites' },
-                { value: stats.contributorCount, label: 'explorateurs' },
-                { value: coverage.squaresOpened, label: 'secteurs ouverts' },
-              ].map((item) => (
-                <View key={item.label} style={styles.progressStatItem}>
-                  <Text style={styles.progressStatStrong}>{item.value.toLocaleString('fr-FR')}</Text>
-                  <Text style={styles.progressStat}>{item.label}</Text>
-                </View>
-              ))}
-            </View>
-          </Pressable>
         </SafeAreaView>
 
         {mission ? (
@@ -209,6 +173,26 @@ export function HomeScreen() {
             />
           </Animated.View>
         ) : null}
+
+
+        {/* Le bilan collectif tient en une ligne : il ne passe jamais devant la mission. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Bilan collectif : Paris refait à ${percentageLabel} %, ${coverage.published1970.toLocaleString('fr-FR')} photos refaites par ${stats.contributorCount.toLocaleString('fr-FR')} explorateurs. Voir le bilan`}
+          onPress={() => {
+            void Haptics.selectionAsync();
+            router.push('/coverage');
+          }}
+          style={({ pressed }) => [styles.progress, pressed && styles.pressedSoft]}>
+          <Image source={Illustrations.parisProgress} style={styles.progressIllustration} contentFit="contain" />
+          <View style={styles.progressCopy}>
+            <Text style={styles.progressLabel}>
+              Paris refait à <Text style={styles.progressValue}>{percentageLabel} %</Text>
+            </Text>
+            <Text style={styles.progressHint}>Voir le bilan</Text>
+          </View>
+          <SymbolView name="chevron.right" size={14} tintColor={Palette.inkSoft} />
+        </Pressable>
 
         {albums.length ? (
           <View style={styles.section}>
@@ -287,9 +271,12 @@ export function HomeScreen() {
             par le CAUE de Paris.
           </Text>
           {syncError ? (
-            <Text accessibilityLiveRegion="polite" style={styles.dataError}>
-              Mise à jour impossible pour le moment — données disponibles hors connexion.
-            </Text>
+            <View style={styles.offline}>
+              <SymbolView name="icloud.slash" size={22} tintColor={Palette.inkSoft} />
+              <Text accessibilityLiveRegion="polite" style={styles.offlineText}>
+                Mise à jour indisponible. Les données déjà chargées restent accessibles.
+              </Text>
+            </View>
           ) : null}
           <Pressable
             accessibilityRole="link"
@@ -311,6 +298,16 @@ export function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  carnetButton: { minHeight: HitSize, paddingHorizontal: Spacing.three, borderRadius: Radius.pill, backgroundColor: Palette.white, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, ...Shadow.card },
+  carnetText: { ...Typography.body, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
+  progress: { marginHorizontal: Spacing.three, marginTop: Spacing.three, minHeight: 64, paddingVertical: Spacing.two, paddingHorizontal: Spacing.three, borderRadius: Radius.large, backgroundColor: Palette.white, flexDirection: 'row', alignItems: 'center', gap: Spacing.twoHalf, ...Shadow.card },
+  progressIllustration: { width: 44, height: 44 },
+  progressCopy: { flex: 1 },
+  progressLabel: { ...Typography.body, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '600' },
+  progressValue: { color: Palette.go, fontFamily: Fonts.display, fontWeight: '800' },
+  progressHint: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
+  offline: { flexDirection: 'row', alignItems: 'center', gap: Spacing.twoHalf, paddingVertical: Spacing.two },
+  offlineText: { ...Typography.body, flex: 1, color: Palette.ink, fontFamily: Fonts.sans },
   screen: {
     flex: 1,
     backgroundColor: Palette.fog,
@@ -349,18 +346,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.two,
   },
-  locationButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Palette.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadow.card,
-  },
-  locationButtonDisabled: {
-    opacity: 0.58,
-  },
   pressed: {
     transform: [{ scale: 0.94 }],
   },
@@ -383,56 +368,6 @@ const styles = StyleSheet.create({
     color: Palette.ink,
     fontFamily: Fonts.sans,
     fontWeight: '600',
-  },
-  progress: {
-    marginTop: Spacing.three,
-    padding: Spacing.three,
-    gap: Spacing.twoHalf,
-    borderRadius: Radius.large,
-    backgroundColor: Palette.white,
-    ...Shadow.card,
-  },
-  progressHead: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-  },
-  progressLabel: {
-    ...Typography.body,
-    color: Palette.inkSoft,
-    fontFamily: Fonts.sans,
-    fontWeight: '600',
-  },
-  progressValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-  },
-  progressValue: {
-    ...Typography.title,
-    color: Palette.go,
-    fontFamily: Fonts.display,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
-  },
-  progressStats: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  progressStatItem: {
-    flex: 1,
-  },
-  progressStat: {
-    ...Typography.caption,
-    color: Palette.inkSoft,
-    fontFamily: Fonts.sans,
-  },
-  progressStatStrong: {
-    ...Typography.title,
-    color: Palette.ink,
-    fontFamily: Fonts.display,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
   },
   albumRail: {
     paddingHorizontal: Spacing.three,
@@ -485,12 +420,6 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     color: Palette.inkSoft,
     fontFamily: Fonts.sans,
-  },
-  dataError: {
-    ...Typography.body,
-    color: Palette.danger,
-    fontFamily: Fonts.sans,
-    fontWeight: '600',
   },
   privacyLink: {
     minHeight: 44,

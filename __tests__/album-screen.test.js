@@ -77,7 +77,7 @@ async function render() {
 it('ouvre la balade sur la carte : titre, chiffres, tracé, repères et une carte par reprise', async () => {
   await render();
   expect(texts()).toEqual(expect.arrayContaining([
-    'Mardi 14 juillet 2026', 'Balade du 14 juillet', '2 reprises · 1,0 km · 56 ans d’écart',
+    'Mardi 14 juillet 2026', 'Balade du 14 juillet', '2 photos · 1,0 km · 56 ans d’écart',
     'Photo 2', 'Secteur 995 · 11:00', 'Secteur 995 · 12:30', '1/2',
   ]));
   // La carte se cadre sur toute la balade, puis le trait de la marche se dessine.
@@ -128,7 +128,11 @@ it('bascule une carte sur la photo de 1970 et ouvre la comparaison', async () =>
 
 it('renomme la balade et ouvre la feuille de partage', async () => {
   await render();
-  await act(async () => pressable('Renommer la balade').props.onPress());
+  // Renommer passe par le menu « Plus d’options » (troisième choix).
+  const { ActionSheetIOS } = require('react-native');
+  const sheet = jest.spyOn(ActionSheetIOS, 'showActionSheetWithOptions').mockImplementation((options, callback) => callback(2));
+  await act(async () => pressable('Plus d’options').props.onPress());
+  expect(sheet.mock.calls[0][0].options).toEqual(['Vue satellite', 'Voir toute la balade', 'Renommer la balade', 'Annuler']);
   const input = renderer.root.findByType(TextInput);
   await act(async () => input.props.onChangeText('Autour du Champ-de-Mars'));
   await act(async () => input.props.onSubmitEditing());

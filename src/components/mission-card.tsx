@@ -80,7 +80,7 @@ export function MissionCard({ station, distance }: MissionCardProps) {
         </View>
         <ProgressBar percentage={percentage} />
 
-        <PrimaryButton label="C’est parti" icon="arrow.right" onPress={open} style={styles.cta} />
+        <PrimaryButton label="Choisir une photo" icon="arrow.right" onPress={open} style={styles.cta} />
       </View>
     </View>
   );
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     ...Shadow.card,
   },
   media: {
-    height: 210,
+    height: 160,
     borderTopLeftRadius: Radius.large,
     borderTopRightRadius: Radius.large,
     overflow: 'hidden',

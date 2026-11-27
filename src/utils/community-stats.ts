@@ -171,12 +171,20 @@ export function formatContributorName(name: string) {
 /** Annuaire complet, recherché par le nom public abrégé ; la clé originale ouvre le profil. */
 export function searchContributors(contributors: Contributor[], query: string): Contributor[] {
   const terms = contributorKey(query).split(' ').filter(Boolean);
+  // Un prénom qui commence par la saisie passe avant un nom qui la contient seulement
+  // (« al » : Alain avant Pascal).
+  const rank = (name: string) => {
+    if (!terms.length) return 0;
+    const words = contributorKey(formatContributorName(name)).split(/[\s.-]+/);
+    return words.some((word) => word.startsWith(terms[0])) ? 0 : 1;
+  };
   return contributors
     .filter(({ name }) => {
       const label = contributorKey(formatContributorName(name));
       return terms.every((term) => label.includes(term));
     })
     .sort((left, right) =>
+      rank(left.name) - rank(right.name) ||
       formatContributorName(left.name).localeCompare(formatContributorName(right.name), 'fr-FR') ||
       left.name.localeCompare(right.name, 'fr-FR'),
     );
