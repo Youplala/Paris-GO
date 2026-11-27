@@ -10,22 +10,26 @@ const componentSource = fs.readFileSync(
   'utf8',
 );
 
-test('explique le dépôt officiel en trois étapes courtes et honnêtes', () => {
-  assert.equal(OFFICIAL_CONTRIBUTION_GUIDE.length, 3);
+test('explique le dépôt officiel sur un seul écran, en trois lignes courtes et honnêtes', () => {
+  assert.equal(OFFICIAL_CONTRIBUTION_GUIDE.steps.length, 3);
+  assert.ok(OFFICIAL_CONTRIBUTION_GUIDE.steps.every((step) => step.text.length <= 110));
 
-  const copy = OFFICIAL_CONTRIBUTION_GUIDE
-    .flatMap((slide) => [slide.title, slide.body, ...slide.points])
+  const copy = [
+    OFFICIAL_CONTRIBUTION_GUIDE.title,
+    ...OFFICIAL_CONTRIBUTION_GUIDE.steps.flatMap((step) => [step.text, step.note ?? '']),
+  ]
     .join(' ')
     .toLocaleLowerCase('fr');
 
   for (const expected of [
-    'archive',
+    '1970',
     'photo actuelle',
     'adresse',
     'commentaire',
-    'identité',
+    'nom',
+    'e.mail',
     'règlement',
-    'envoi',
+    'envoyer',
     'modération',
   ]) {
     assert.match(copy, new RegExp(expected), expected);

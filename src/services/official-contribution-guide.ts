@@ -1,35 +1,21 @@
-export const OFFICIAL_CONTRIBUTION_GUIDE = [
-  {
-    icon: 'photo.stack.fill' as const,
-    eyebrow: 'ÉTAPE 1 · PHOTOS',
-    title: 'Vos deux photos se préparent automatiquement',
-    body: 'Paris GO prépare les fichiers pendant que vous découvrez le formulaire officiel.',
-    points: [
-      'L’archive de 1970 est jointe en premier.',
-      'Votre photo actuelle est jointe juste après.',
-      'Vérifiez que l’indicateur affiche bien 2/2 photos jointes.',
-    ],
-  },
-  {
-    icon: 'text.badge.checkmark' as const,
-    eyebrow: 'ÉTAPE 2 · INFORMATIONS',
-    title: 'Les données publiques sont préparées',
-    body: 'Paris GO remplit uniquement ce qui est certain et utile au dépôt.',
-    points: [
-      'Adresse, date, position et type d’appareil sont préremplis.',
-      'Le commentaire est libre. La mention « Photo refaite avec Paris GO. » sera ajoutée lors de l’envoi.',
-      'Relisez tout avant de continuer.',
-    ],
-  },
-  {
-    icon: 'hand.raised.fill' as const,
-    eyebrow: 'ÉTAPE 3 · VALIDATION',
-    title: 'Vous gardez la main jusqu’au bout',
-    body: 'Le formulaire appartient à l’Observatoire. Paris GO ne valide rien à votre place.',
-    points: [
-      'Votre identité reste à saisir par vous-même.',
-      'Le règlement et les consentements exigent votre action.',
-      'Vous déclenchez l’envoi final, puis la contribution passe en modération.',
-    ],
-  },
-] as const;
+/**
+ * Le mode d'emploi du formulaire officiel, sur un seul écran : ce que Paris GO prépare, ce que
+ * la personne fait elle-même, et ce qui se passe ensuite. Court, mais honnête sur le partage
+ * des rôles : l'identité, le règlement et l'envoi restent entre ses mains.
+ */
+export const OFFICIAL_CONTRIBUTION_GUIDE = {
+  title: 'Envoyer votre photo à l’Observatoire',
+  steps: [
+    {
+      text: 'Vos deux photos, l’adresse et la date sont déjà remplies.',
+      note: 'La photo de 1970 d’abord, votre photo actuelle ensuite. Le commentaire mentionnera « Photo refaite avec Paris GO ».',
+    },
+    {
+      text: 'Vous indiquez votre nom et votre e‑mail, puis acceptez le règlement.',
+    },
+    {
+      text: 'Vous appuyez sur Envoyer. L’Observatoire vérifie votre photo avant de la publier (modération).',
+    },
+  ],
+  action: 'C’est parti',
+} as const;
