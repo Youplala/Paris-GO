@@ -1,53 +1,52 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { FlatList, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Fonts, Palette, Radius, Spacing, Typography } from '@/constants/theme';
+import { ContributorRow } from '@/components/contributor-row';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { Fonts, HitSize, Palette, Radius, Spacing, Typography } from '@/constants/theme';
 import { useStations } from '@/providers/stations-provider';
 import { formatContributorName, searchContributors } from '@/utils/community-stats';
 
+/** Toutes les personnes du relevé, par ordre alphabétique, avec la même recherche par prénom. */
 export function ContributorsScreen() {
   const router = useRouter();
-  const { stats } = useStations();
-  const [query, setQuery] = useState('');
+  const { q } = useLocalSearchParams<{ q?: string }>();
+  const { stats, findContributorSubmissions } = useStations();
+  const [query, setQuery] = useState(q ?? '');
   // Malgré son nom historique, topContributors contient tous les auteurs du relevé.
   const contributors = useMemo(() => searchContributors(stats.topContributors, query), [stats.topContributors, query]);
+  const searching = query.trim().length > 0;
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      <View style={styles.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Retour à la communauté"
-          onPress={() => router.back()} style={styles.back}>
-          <SymbolView name="chevron.left" size={18} tintColor={Palette.parisBlue} />
-        </Pressable>
-        <Text accessibilityRole="header" style={styles.title}>Contributeurs</Text>
-      </View>
+    <View style={styles.screen}>
+      <ScreenHeader kicker="Communauté" title="Tout le monde" onBack={() => router.back()} />
       <View style={styles.search}>
         <SymbolView name="magnifyingglass" size={19} tintColor={Palette.inkSoft} />
         <TextInput
-          accessibilityLabel="Rechercher un contributeur par prénom"
-          placeholder="Rechercher par prénom"
+          accessibilityLabel="Chercher une personne par son prénom"
+          placeholder="Chercher un prénom"
           placeholderTextColor={Palette.inkSoft}
           value={query}
           onChangeText={setQuery}
           autoCorrect={false}
-          autoCapitalize="none"
+          autoCapitalize="words"
           returnKeyType="search"
           onSubmitEditing={Keyboard.dismiss}
           style={styles.input}
         />
-        {query ? (
+        {searching ? (
           <Pressable accessibilityRole="button" accessibilityLabel="Effacer la recherche"
             onPress={() => setQuery('')} style={styles.clear}>
-            <SymbolView name="xmark.circle.fill" size={19} tintColor={Palette.inkSoft} />
+            <SymbolView name="xmark.circle.fill" size={20} tintColor={Palette.inkSoft} />
           </Pressable>
         ) : null}
       </View>
       <Text accessibilityLiveRegion="polite" style={styles.count}>
-        {contributors.length} {contributors.length > 1 ? 'contributeurs' : 'contributeur'}
-        {query.trim() ? (contributors.length > 1 ? ' trouvés' : ' trouvé') : ' dans le relevé'}
+        {contributors.length.toLocaleString('fr-FR')} {contributors.length > 1 ? 'personnes' : 'personne'}
+        {searching ? (contributors.length > 1 ? ' trouvées' : ' trouvée') : ' ont publié une photo'}
       </Text>
       <FlatList
         data={contributors}
@@ -58,51 +57,37 @@ export function ContributorsScreen() {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Aucun contributeur trouvé</Text>
-            <Text style={styles.emptyCopy}>Essayez un autre prénom. Seuls les auteurs de photos publiées dans le relevé sont disponibles.</Text>
+            <Text style={styles.emptyTitle}>Personne ne porte ce prénom</Text>
+            <Text style={styles.emptyCopy}>Essayez une autre orthographe. Seules les personnes dont une photo est publiée apparaissent ici.</Text>
           </View>
         }
-        renderItem={({ item }) => {
-          const displayName = formatContributorName(item.name);
-          return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Voir les photos de ${displayName}, ${item.count} ${item.count > 1 ? 'photos' : 'photo'}`}
-              onPress={() => {
-                Keyboard.dismiss();
-                router.push({ pathname: '/contributor/[name]', params: { name: item.name } });
-              }}
-              style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-              <View style={styles.identity}>
-                <Text style={styles.name}>{displayName}</Text>
-                <Text style={styles.meta}>{item.count} {item.count > 1 ? 'photos publiées' : 'photo publiée'}</Text>
-              </View>
-              <SymbolView name="chevron.right" size={15} tintColor={Palette.parisBlue} />
-            </Pressable>
-          );
-        }}
+        renderItem={({ item }) => (
+          <ContributorRow
+            displayName={formatContributorName(item.name)}
+            count={item.count}
+            photos={searching ? findContributorSubmissions(item.name).slice(0, 4) : undefined}
+            onOpen={() => {
+              Keyboard.dismiss();
+              router.push({ pathname: '/contributor/[name]', params: { name: item.name } });
+            }}
+            onOpenPhoto={(photo) => router.push({ pathname: '/station/[id]', params: { id: photo.id } })}
+          />
+        )}
+        ListFooterComponent={<SafeAreaView edges={['bottom']} />}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Palette.fog },
-  header: { minHeight: 70, paddingHorizontal: Spacing.three, flexDirection: 'row', alignItems: 'center', gap: Spacing.twoHalf },
-  back: { width: 44, height: 44, borderRadius: 22, backgroundColor: Palette.white, alignItems: 'center', justifyContent: 'center' },
-  title: { ...Typography.display, fontFamily: Fonts.display, fontSize: 28, color: Palette.parisBlue, flex: 1, fontWeight: '900' },
-  search: { margin: Spacing.three, marginTop: Spacing.two, paddingLeft: Spacing.three, minHeight: 48, borderRadius: Radius.medium, backgroundColor: Palette.white, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  input: { ...Typography.body, fontFamily: Fonts.sans, color: Palette.ink, flex: 1, minHeight: 48, paddingVertical: Spacing.two, paddingRight: Spacing.two },
-  clear: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  count: { ...Typography.caption, fontFamily: Fonts.sans, color: Palette.inkSoft, marginHorizontal: Spacing.three, marginBottom: Spacing.two },
+  search: { marginHorizontal: Spacing.three, marginTop: Spacing.two, paddingLeft: Spacing.three, minHeight: 52, borderRadius: Radius.medium, backgroundColor: Palette.white, borderWidth: 1, borderColor: Palette.line, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  input: { ...Typography.body, fontFamily: Fonts.sans, color: Palette.ink, flex: 1, minHeight: 52, paddingVertical: Spacing.two },
+  clear: { width: HitSize, height: HitSize, alignItems: 'center', justifyContent: 'center' },
+  count: { ...Typography.caption, fontFamily: Fonts.sans, fontWeight: '600', color: Palette.inkSoft, marginHorizontal: Spacing.three, marginTop: Spacing.three, marginBottom: Spacing.two },
   list: { paddingBottom: Spacing.four },
-  row: { minHeight: 76, padding: Spacing.three, backgroundColor: Palette.white, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  identity: { flex: 1 },
-  name: { ...Typography.title, fontFamily: Fonts.display, color: Palette.ink },
-  meta: { ...Typography.caption, fontFamily: Fonts.sans, color: Palette.inkSoft, marginTop: Spacing.one },
-  separator: { height: StyleSheet.hairlineWidth, backgroundColor: Palette.line, marginLeft: Spacing.three },
-  pressed: { backgroundColor: Palette.blueMist },
-  empty: { padding: Spacing.four },
-  emptyTitle: { ...Typography.title, fontFamily: Fonts.display, color: Palette.ink },
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: Palette.line },
+  empty: { padding: Spacing.three },
+  emptyTitle: { ...Typography.title, fontFamily: Fonts.display, fontWeight: '800', color: Palette.ink },
   emptyCopy: { ...Typography.body, fontFamily: Fonts.sans, color: Palette.inkSoft, marginTop: Spacing.two },
 });

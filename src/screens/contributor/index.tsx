@@ -1,38 +1,21 @@
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AdaptivePhoto } from '@/components/adaptive-photo';
-import { BeforeAfterSlider } from '@/components/before-after-slider';
-import { ParisGoBadge } from '@/components/paris-go-badge';
+import { ContributorAvatar } from '@/components/contributor-avatar';
 import { SourcePill } from '@/components/source-pill';
-import { Fonts, Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { IconButton } from '@/components/ui/icon-button';
+import { YearPill } from '@/components/ui/year-pill';
+import { Fonts, Kicker, Palette, Radius, Spacing, Typography } from '@/constants/theme';
 import { useStations } from '@/providers/stations-provider';
 import type { StationDetail } from '@/types/station';
-import {
-  contributorKey,
-  formatContributorName,
-} from '@/utils/community-stats';
+import { contributorKey, formatContributorName } from '@/utils/community-stats';
 
-const dateFormat = new Intl.DateTimeFormat('fr-FR', {
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-});
-
-/** Initiales lisibles pour l'avatar, calculées sur le nom déjà réduit par `formatContributorName`. */
-function initialsFor(name: string) {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .filter((part) => !['de', 'du', 'des', 'le', 'la'].includes(part.toLocaleLowerCase('fr-FR')))
-    .slice(0, 2)
-    .map((part) => part[0]?.toLocaleUpperCase('fr-FR'))
-    .join('');
-}
+const dateFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 
 function arrondissementLabel(value?: string) {
   if (!value || !/^750\d{2}$/.test(value)) return value ?? 'Paris';
@@ -40,77 +23,50 @@ function arrondissementLabel(value?: string) {
   return `Paris ${number === 1 ? '1er' : `${number}e`}`;
 }
 
-function ContributorPhotoCard({
-  detail,
-  onOpen,
-}: {
-  detail: StationDetail;
-  onOpen: () => void;
-}) {
+/** Une photo refaite : la vue d'aujourd'hui, la vue de 1970 en médaillon, le lieu dessous. */
+function PhotoTile({ detail, onOpen }: { detail: StationDetail; onOpen: () => void }) {
   return (
-    <View style={styles.photoCard}>
-      {detail.referenceImage && detail.recaptureImage ? (
-        <BeforeAfterSlider before={detail.referenceImage} after={detail.recaptureImage}
-          beforeLabel={String(detail.year)} afterLabel="2026" borderRadius={0}
-          onPressSide={onOpen} />
-      ) : (
-        <Pressable
-          accessibilityLabel={`Ouvrir la photo refaite ${detail.name}`}
-          accessibilityRole="button"
-          onPress={onOpen}
-          style={({ pressed }) => [styles.photoFallback, pressed && styles.photoCardPressed]}>
-          {detail.recaptureImage || detail.referenceImage ? (
-            <AdaptivePhoto source={(detail.recaptureImage ?? detail.referenceImage)!} style={StyleSheet.absoluteFill} />
-          ) : null}
-        </Pressable>
-      )}
-      <Pressable
-        accessibilityLabel={`Ouvrir la photo refaite ${detail.name}`}
-        accessibilityRole="button"
-        onPress={onOpen}
-        style={({ pressed }) => [styles.photoCaption, pressed && styles.photoCardPressed]}>
-        <ParisGoBadge photo={detail} />
-        <Text style={styles.photoTitle} numberOfLines={2}>
-          {detail.name}
-        </Text>
-        <View style={styles.photoMetaRow}>
-          <Text style={styles.photoMeta}>
-            {arrondissementLabel(detail.arrondissement)}
-            {detail.recaptureDate ? ` · ${dateFormat.format(new Date(`${detail.recaptureDate}T12:00:00`))}` : ''}
-          </Text>
-          <SymbolView name="arrow.right" size={15} tintColor={Palette.parisBlue} />
-        </View>
-      </Pressable>
-    </View>
+    <Pressable
+      accessibilityLabel={`Ouvrir la photo refaite ${detail.name}`}
+      accessibilityRole="button"
+      onPress={onOpen}
+      style={({ pressed }) => [styles.tile, pressed && styles.pressed]}>
+      <View style={styles.tilePhoto}>
+        {detail.recaptureImage ? (
+          <Image source={detail.recaptureImage} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
+        ) : null}
+        {detail.referenceImage ? (
+          <View style={styles.tileInset}>
+            <Image source={detail.referenceImage} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
+          </View>
+        ) : null}
+        <YearPill label={detail.recaptureDate?.slice(0, 4) ?? '2026'} tone="today" style={styles.tileYear} />
+      </View>
+      <Text style={styles.tileTitle} numberOfLines={2}>{detail.name}</Text>
+      <Text style={styles.tileMeta} numberOfLines={1}>{arrondissementLabel(detail.arrondissement)}</Text>
+    </Pressable>
   );
 }
 
+/**
+ * Profil d'une personne qui refait les photos aujourd'hui, en miroir de celui des photographes
+ * de 1970 : qui, combien, puis toutes ses photos en grille pour retrouver la bonne d'un coup d'œil.
+ */
 export function ContributorScreen() {
   const router = useRouter();
   const { name } = useLocalSearchParams<{ name?: string }>();
   const { stats, snapshotVersion, findContributorSubmissions } = useStations();
   const requestedName = name ?? '';
-  const contributorIndex = stats.topContributors.findIndex(
-    (contributor) => contributorKey(contributor.name) === contributorKey(requestedName),
+  const contributor = stats.topContributors.find(
+    (candidate) => contributorKey(candidate.name) === contributorKey(requestedName),
   );
-  const contributor = stats.topContributors[contributorIndex];
-  const displayName = formatContributorName(contributor?.name ?? requestedName);
-  const photos = useMemo(
-    () => findContributorSubmissions(requestedName),
-    [findContributorSubmissions, requestedName],
-  );
+  const displayName = formatContributorName(contributor?.name ?? requestedName) || 'Photographe';
+  const photos = useMemo(() => findContributorSubmissions(requestedName), [findContributorSubmissions, requestedName]);
 
-  const profileStats = useMemo(() => {
-    const areaCounts = new Map<string, number>();
-    photos.forEach((photo) => {
-      const area = arrondissementLabel(photo.arrondissement);
-      areaCounts.set(area, (areaCounts.get(area) ?? 0) + 1);
-    });
+  const summary = useMemo(() => {
+    const areas = new Set(photos.map((photo) => arrondissementLabel(photo.arrondissement)));
     const latestDate = photos.find((photo) => photo.recaptureDate)?.recaptureDate;
-    return {
-      areaCount: areaCounts.size,
-      latestDate,
-    };
+    return { areaCount: areas.size, latestDate };
   }, [photos]);
 
   const openPhoto = (detail: StationDetail) => {
@@ -119,86 +75,53 @@ export function ContributorScreen() {
   };
 
   const header = (
-    <View style={styles.profileHeader}>
+    <View>
       <SafeAreaView edges={['top']} style={styles.topBar}>
-        <Pressable
-          accessibilityLabel="Retour"
-          accessibilityRole="button"
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-          <SymbolView name="chevron.left" size={17} tintColor={Palette.ink} />
-        </Pressable>
-        <Text style={styles.context}>Communauté</Text>
+        <IconButton icon="chevron.left" accessibilityLabel="Retour" onPress={() => router.back()} />
       </SafeAreaView>
-
-      <View style={styles.hero}>
-        <View style={styles.identityRow}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initialsFor(displayName)}</Text>
-          </View>
-          <View style={styles.identityCopy}>
-            <Text accessibilityRole="header" style={styles.name}>{displayName || 'Contributeur'}</Text>
-          </View>
-        </View>
-        {photos.length === 0 ? (
-          <Text style={styles.intro}>Aucune photo publiée ne correspond encore à ce profil.</Text>
-        ) : null}
-      </View>
-
-      <View style={styles.metrics}>
-        <View style={styles.metric}>
-          <Text style={styles.metricValue}>{photos.length}</Text>
-          <Text style={styles.metricLabel}>Photos</Text>
-        </View>
-        <View style={styles.metricDivider} />
-        <View style={styles.metric}>
-          <Text style={styles.metricValue}>{profileStats.areaCount}</Text>
-          <Text accessibilityLabel="Arrondissements" style={styles.metricLabel}>Arrond.</Text>
-        </View>
-        <View style={styles.metricDivider} />
-        <View style={styles.metric}>
-          <Text style={styles.metricValue}>
-            {contributorIndex >= 0 ? `#${contributorIndex + 1}` : '—'}
-          </Text>
-          <Text accessibilityLabel="Rang dans le classement" style={styles.metricLabel}>Rang</Text>
+      <View style={styles.identity}>
+        <ContributorAvatar name={displayName} size={64} tone="strong" />
+        <View style={styles.identityCopy}>
+          <Text style={styles.kicker}>Photographe d’aujourd’hui</Text>
+          <Text accessibilityRole="header" style={styles.name} numberOfLines={2}>{displayName}</Text>
         </View>
       </View>
-
-      {profileStats.latestDate ? (
-        <View style={styles.insightRow}>
-          <SymbolView name="calendar" size={14} tintColor={Palette.inkSoft} />
-          <Text style={styles.insightText}>
-            Dernière photo le {dateFormat.format(new Date(`${profileStats.latestDate}T12:00:00`))}
+      {photos.length ? (
+        <View style={styles.lead}>
+          <Text style={styles.leadText}>
+            <Text style={styles.leadValue}>{photos.length.toLocaleString('fr-FR')}</Text>
+            {` ${photos.length > 1 ? 'photos refaites' : 'photo refaite'} · ${summary.areaCount} ${summary.areaCount > 1 ? 'arrondissements' : 'arrondissement'}`}
           </Text>
+          {summary.latestDate ? (
+            <Text style={styles.leadHint}>
+              Dernière photo le {dateFormat.format(new Date(`${summary.latestDate}T12:00:00`))}
+            </Text>
+          ) : null}
         </View>
       ) : null}
-
-      <View style={styles.galleryHeader}>
-        <Text style={styles.galleryTitle}>Ses photos</Text>
-        <Text style={styles.sortLabel}>Les plus récentes d’abord</Text>
-      </View>
+      {photos.length ? <Text style={styles.galleryTitle}>Ses photos, les plus récentes d’abord</Text> : null}
     </View>
   );
 
-  // Même lecture que le fil Communauté : comparaison entière, légende, séparation.
   return (
     <View style={styles.screen}>
       <FlatList
         data={photos}
         keyExtractor={(photo) => photo.id}
+        numColumns={2}
+        columnWrapperStyle={styles.gridRow}
         contentContainerStyle={styles.content}
         ListHeaderComponent={header}
         ListFooterComponent={<View style={styles.sourceNote}><SourcePill version={snapshotVersion} /></View>}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <SymbolView name="photo.on.rectangle.angled" size={26} tintColor={Palette.copper} />
-            <Text style={styles.emptyTitle}>Aucune photo à afficher</Text>
-            <Text style={styles.emptyText}>Revenez aux contributeurs pour choisir un autre profil.</Text>
+            <SymbolView name="photo.on.rectangle.angled" size={26} tintColor={Palette.go} />
+            <Text style={styles.emptyTitle}>Aucune photo publiée pour l’instant</Text>
+            <Text style={styles.emptyText}>Revenez à la communauté pour chercher un autre prénom.</Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <ContributorPhotoCard detail={item} onOpen={() => openPhoto(item)} />
-        )}
+        renderItem={({ item }) => <PhotoTile detail={item} onOpen={() => openPhoto(item)} />}
+        initialNumToRender={8}
         showsVerticalScrollIndicator={false}
       />
     </View>
@@ -208,37 +131,26 @@ export function ContributorScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Palette.fog },
   content: { paddingBottom: Spacing.four },
-  profileHeader: { backgroundColor: Palette.fog },
-  topBar: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.twoHalf },
-  backButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: Palette.white, alignItems: 'center', justifyContent: 'center', ...Shadow.card },
-  context: { ...Typography.body, color: Palette.inkSoft, fontFamily: Fonts.sans },
-  hero: { paddingHorizontal: Spacing.three, paddingTop: Spacing.three },
-  identityRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: Palette.parisBlue, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { ...Typography.title, color: Palette.white, fontFamily: Fonts.display, fontWeight: '900' },
+  topBar: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two },
+  identity: { marginTop: Spacing.three, paddingHorizontal: Spacing.three, flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   identityCopy: { flex: 1 },
-  name: { ...Typography.display, fontSize: 28, color: Palette.parisBlue, fontFamily: Fonts.display, fontWeight: '900' },
-  intro: { ...Typography.body, marginTop: Spacing.three, color: Palette.inkSoft, fontFamily: Fonts.sans },
-  metrics: { marginTop: Spacing.three, marginHorizontal: Spacing.three, paddingVertical: Spacing.three, borderRadius: Radius.medium, backgroundColor: Palette.white, flexDirection: 'row' },
-  metric: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.one },
-  metricDivider: { width: StyleSheet.hairlineWidth, backgroundColor: Palette.line },
-  metricValue: { ...Typography.title, color: Palette.parisBlue, fontFamily: Fonts.display, fontWeight: '900' },
-  metricLabel: { ...Typography.caption, marginTop: Spacing.half, color: Palette.inkSoft, fontFamily: Fonts.sans, textAlign: 'center' },
-  insightRow: { marginTop: Spacing.twoHalf, marginHorizontal: Spacing.three, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  insightText: { ...Typography.caption, flex: 1, color: Palette.inkSoft, fontFamily: Fonts.sans },
-  galleryHeader: { marginTop: Spacing.four, marginBottom: Spacing.twoHalf, paddingHorizontal: Spacing.three },
-  galleryTitle: { ...Typography.title, color: Palette.ink, fontFamily: Fonts.display },
-  sortLabel: { ...Typography.caption, marginTop: Spacing.half, color: Palette.inkSoft, fontFamily: Fonts.sans },
-  photoCard: { marginBottom: Spacing.twoHalf, borderBottomWidth: 1, borderBottomColor: Palette.line },
-  photoCardPressed: { opacity: 0.9 },
-  photoFallback: { height: 240, backgroundColor: Palette.archive },
-  photoCaption: { backgroundColor: Palette.white, paddingTop: Spacing.twoHalf, paddingBottom: Spacing.four, paddingHorizontal: Spacing.three },
-  photoTitle: { ...Typography.title, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
-  photoMetaRow: { marginTop: Spacing.one, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  photoMeta: { ...Typography.body, flex: 1, color: Palette.inkSoft, fontFamily: Fonts.sans },
+  kicker: { ...Kicker, color: Palette.go },
+  name: { ...Typography.display, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
+  lead: { marginTop: Spacing.three, marginHorizontal: Spacing.three, padding: Spacing.three, borderRadius: Radius.large, backgroundColor: Palette.white, gap: Spacing.half },
+  leadText: { ...Typography.body, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '600' },
+  leadValue: { color: Palette.go, fontFamily: Fonts.display, fontWeight: '800' },
+  leadHint: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
+  galleryTitle: { ...Typography.title, marginTop: Spacing.four, marginBottom: Spacing.twoHalf, paddingHorizontal: Spacing.three, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
+  gridRow: { paddingHorizontal: Spacing.three, gap: Spacing.twoHalf },
+  tile: { flex: 1, maxWidth: '50%', marginBottom: Spacing.three },
+  tilePhoto: { aspectRatio: 4 / 5, borderRadius: Radius.medium, overflow: 'hidden', backgroundColor: Palette.archive },
+  tileInset: { position: 'absolute', right: Spacing.two, bottom: Spacing.two, width: '42%', aspectRatio: 1, borderRadius: Radius.small, overflow: 'hidden', borderWidth: 2, borderColor: Palette.white, backgroundColor: Palette.archive },
+  tileYear: { position: 'absolute', left: Spacing.two, top: Spacing.two },
+  tileTitle: { ...Typography.caption, marginTop: Spacing.two, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
+  tileMeta: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   sourceNote: { alignItems: 'center', padding: Spacing.three },
-  empty: { backgroundColor: Palette.fog, padding: Spacing.four, alignItems: 'center' },
-  emptyTitle: { ...Typography.title, marginTop: Spacing.two, color: Palette.ink, fontFamily: Fonts.display },
-  emptyText: { ...Typography.body, marginTop: Spacing.one, color: Palette.inkSoft, fontFamily: Fonts.sans, textAlign: 'center' },
-  pressed: { opacity: 0.78, transform: [{ scale: 0.96 }] },
+  empty: { padding: Spacing.four, alignItems: 'center', gap: Spacing.one },
+  emptyTitle: { ...Typography.title, marginTop: Spacing.two, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800', textAlign: 'center' },
+  emptyText: { ...Typography.body, color: Palette.inkSoft, fontFamily: Fonts.sans, textAlign: 'center' },
+  pressed: { opacity: 0.8 },
 });
