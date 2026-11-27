@@ -5,11 +5,10 @@ import { SymbolView } from 'expo-symbols';
 import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProgressBar } from '@/components/progress-bar';
-import { Illustrations } from '@/constants/illustrations';
-import { Fonts, HitSize, Kicker, Palette, Radius, Shadow, Spacing, Stat, Typography } from '@/constants/theme';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { Fonts, Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useBhvpImages } from '@/hooks/use-bhvp-images';
 import { useStations } from '@/providers/stations-provider';
 import type { PhotographerSector } from '@/services/archive-photographers';
@@ -117,17 +116,11 @@ export function PhotographerScreen() {
 
   return (
     <View style={styles.screen}>
-      <SafeAreaView edges={['top']} style={styles.topBar}>
-        <Pressable
-          accessibilityLabel="Retour"
-          accessibilityRole="button"
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.back, styles.backButton, pressed && styles.pressed]}>
-          <SymbolView name="chevron.left" size={17} weight="semibold" tintColor={Palette.ink} />
-        </Pressable>
-        <Text style={styles.context}>Archives de 1970</Text>
-        <View style={styles.back} />
-      </SafeAreaView>
+      <ScreenHeader
+        kicker="Photographe de 1970"
+        title={profile?.displayName ?? 'Photographe'}
+        onBack={() => router.back()}
+      />
 
       {!profile ? (
         <View style={styles.empty}>
@@ -137,57 +130,19 @@ export function PhotographerScreen() {
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          <View style={styles.hero}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initialsFor(profile.displayName)}</Text>
-              <View style={styles.avatarYear}>
-                <Text style={styles.avatarYearText}>1970</Text>
-              </View>
-            </View>
-            <Text style={styles.kicker}>PHOTOGRAPHE DU CONCOURS DE 1970</Text>
-            <Text accessibilityRole="header" style={styles.name}>{profile.displayName}</Text>
-            {profile.candidateNumbers.length ? (
-              <Text style={styles.candidate}>
-                Candidat n° {profile.candidateNumbers.join(', n° ')} · « C’était Paris en 1970 »
-              </Text>
-            ) : null}
-          </View>
-
-          <View style={styles.metrics}>
-            {[
-              { value: profile.photoCount, label: profile.photoCount > 1 ? 'photos' : 'photo' },
-              { value: profile.sectors.length, label: profile.sectors.length > 1 ? 'secteurs' : 'secteur' },
-              { value: profile.recapturedCount, label: profile.recapturedCount > 1 ? 'refaites' : 'refaite' },
-            ].map((metric) => (
-              <View key={metric.label} style={styles.metric}>
-                <Text style={styles.metricValue}>{metric.value.toLocaleString('fr-FR')}</Text>
-                <Text style={styles.metricLabel}>{metric.label}</Text>
-              </View>
-            ))}
-          </View>
+          <Text style={styles.lead}>
+            {profile.photoCount.toLocaleString('fr-FR')} {profile.photoCount > 1 ? 'photos' : 'photo'} ·{' '}
+            {profile.sectors.length} {profile.sectors.length > 1 ? 'secteurs' : 'secteur'}
+            {profile.candidateNumbers.length ? ` · candidat n° ${profile.candidateNumbers.join(', ')}` : ''}
+          </Text>
 
           <View style={styles.card}>
-            <View style={styles.progressHead}>
-              <Text style={styles.cardTitle}>Ses photos refaites aujourd’hui</Text>
-              <Text style={styles.progressValue}>
-                {Math.round((profile.recapturedCount / Math.max(1, profile.photoCount)) * 100)} %
-              </Text>
-            </View>
+            <Text style={styles.cardTitle}>
+              {profile.recapturedCount
+                ? `${profile.recapturedCount} de ses ${profile.photoCount} photos ${profile.recapturedCount > 1 ? 'ont déjà été refaites' : 'a déjà été refaite'}`
+                : 'Aucune de ses photos n’a encore été refaite'}
+            </Text>
             <ProgressBar percentage={(profile.recapturedCount / Math.max(1, profile.photoCount)) * 100} height={8} />
-            <View style={styles.badgeRow}>
-              <Image
-                source={Illustrations.photographerBadge}
-                style={[styles.badge, profile.recapturedCount < profile.photoCount && styles.badgeLocked]}
-                contentFit="contain"
-              />
-              <Text style={[styles.cardCopy, styles.badgeCopy]}>
-                {profile.recapturedCount >= profile.photoCount
-                  ? 'Badge débloqué : toutes ses photos ont été refaites !'
-                  : profile.recapturedCount
-                    ? `${profile.recapturedCount} sur ${profile.photoCount} refaites. Encore ${profile.photoCount - profile.recapturedCount} pour débloquer son badge.`
-                    : 'Aucune n’a encore été refaite : à vous de retrouver ses points de vue.'}
-              </Text>
-            </View>
           </View>
 
           {region ? (
@@ -271,32 +226,10 @@ export function PhotographerScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Palette.fog },
-  topBar: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.two, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  back: { width: HitSize, height: HitSize, borderRadius: HitSize / 2, alignItems: 'center', justifyContent: 'center' },
-  backButton: { backgroundColor: Palette.white, ...Shadow.card },
-  context: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '700' },
   content: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.six },
-  hero: { alignItems: 'center', paddingTop: Spacing.two, paddingBottom: Spacing.three },
-  avatar: { width: 92, height: 92, borderRadius: 46, backgroundColor: Palette.copper, alignItems: 'center', justifyContent: 'center', ...Shadow.card },
-  avatarText: { color: Palette.white, fontFamily: Fonts.display, fontWeight: '800', fontSize: 34, lineHeight: 38 },
-  avatarYear: { position: 'absolute', bottom: -6, paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill, backgroundColor: Palette.ink, borderWidth: 2, borderColor: Palette.fog },
-  avatarYearText: { color: Palette.white, fontFamily: Fonts.display, fontWeight: '800', fontSize: 12, lineHeight: 15 },
-  kicker: { ...Kicker, marginTop: Spacing.three, color: Palette.go, textAlign: 'center' },
-  name: { ...Typography.display, marginTop: Spacing.one, fontSize: 34, lineHeight: 38, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800', textAlign: 'center' },
-  candidate: { ...Typography.caption, marginTop: Spacing.one, color: Palette.inkSoft, fontFamily: Fonts.sans, textAlign: 'center' },
-  metrics: { flexDirection: 'row', gap: Spacing.two },
-  metric: { flex: 1, paddingVertical: Spacing.twoHalf, paddingHorizontal: Spacing.twoHalf, borderRadius: Radius.medium, backgroundColor: Palette.white, ...Shadow.card },
-  metricValue: { ...Stat, fontSize: 26, lineHeight: 30, color: Palette.parisBlue },
-  metricLabel: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '600' },
   card: { marginTop: Spacing.three, padding: Spacing.three, gap: Spacing.two, borderRadius: Radius.large, backgroundColor: Palette.white, ...Shadow.card },
-  progressHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: Spacing.two },
+  lead: { ...Typography.body, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '600' },
   cardTitle: { ...Typography.body, flex: 1, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
-  progressValue: { ...Typography.title, color: Palette.go, fontFamily: Fonts.display, fontWeight: '800' },
-  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.twoHalf },
-  badge: { width: 56, height: 56 },
-  badgeCopy: { flex: 1 },
-  badgeLocked: { opacity: 0.35 },
-  cardCopy: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   mapWrap: { marginTop: Spacing.three, height: 190, borderRadius: Radius.large, overflow: 'hidden', backgroundColor: Palette.blueMist },
   mapDot: { minWidth: 26, height: 26, paddingHorizontal: 5, borderRadius: 13, backgroundColor: Palette.copper, borderWidth: 2, borderColor: Palette.white, alignItems: 'center', justifyContent: 'center' },
   mapDotDone: { backgroundColor: Palette.parisBlue },

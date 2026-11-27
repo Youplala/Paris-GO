@@ -27,7 +27,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BeforeAfterSlider } from '@/components/before-after-slider';
 import { ParisGridMap } from '@/components/paris-grid-map';
 import { PrimaryButton } from '@/components/primary-button';
-import { ProgressBar } from '@/components/progress-bar';
 import {
   Fonts,
   HitSize,
@@ -216,7 +215,7 @@ function Radar({ images, size }: { images: ImageSource[]; size: number }) {
 
 export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const { width, height } = useWindowDimensions();
-  const { publishedSubmissions, coverage, grid } = useStations();
+  const { publishedSubmissions, grid } = useStations();
   const { locate, loading: locating } = useUserLocation();
   const listRef = useRef<FlatList<Page>>(null);
   const [pageIndex, setPageIndex] = useState(0);
@@ -227,9 +226,6 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const gridHeight = Math.min(260, Math.max(190, height * 0.28));
   const radarSize = Math.min(270, width - Spacing.five * 2, height * 0.3);
   const finalPage = pageIndex === PAGES.length - 1;
-  const percentageLabel = coverage.percentage.toLocaleString('fr-FR', {
-    maximumFractionDigits: 1,
-  });
   const radarImages = publishedSubmissions
     .map((submission) => submission.referenceImage)
     .filter((image): image is ImageSource => Boolean(image))
@@ -312,18 +308,6 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
       return (
         <ScrollView {...pageProps}>
           <ParisGridMap cells={grid} squareCount={HISTORIC_GRID_COUNT} height={gridHeight} />
-
-          <View style={styles.missionProgress}>
-            <View style={styles.missionHead}>
-              <Text style={styles.missionKicker}>La mission collective</Text>
-              <Text style={styles.missionValue}>{percentageLabel} %</Text>
-            </View>
-            <ProgressBar percentage={coverage.percentage} height={10} />
-            <Text style={styles.missionDetail}>
-              {coverage.published1970.toLocaleString('fr-FR')} photos refaites sur{' '}
-              {coverage.total1970.toLocaleString('fr-FR')}. À vous de faire monter ce chiffre.
-            </Text>
-          </View>
 
           <View style={styles.steps}>
             <MissionStep

@@ -20,6 +20,8 @@ export const Palette = {
   goBright: '#E8552B',
   goSoft: '#FBE4DA',
   lichen: '#4F8A6B',
+  /** Vert lisible pour du texte ou sous du blanc (5,7:1) ; `lichen` reste pour les coches et pastilles. */
+  lichenDeep: '#3E7156',
   line: '#DDD5C8',
   danger: '#A13C32',
   black: '#081116',
@@ -99,6 +101,14 @@ export const Radius = {
 
 /** Taille minimale d'une cible tactile (HIG). */
 export const HitSize = 44;
+
+/** Voiles et verre posés sur une photo ou une carte : déclarés une fois, jamais recopiés en RGBA. */
+export const Surface = {
+  mediaScrim: 'rgba(8, 17, 22, 0.72)',
+  glassDark: 'rgba(13, 42, 60, 0.42)',
+  glassFallback: 'rgba(13, 42, 60, 0.76)',
+  glassBorder: 'rgba(255, 255, 255, 0.28)',
+} as const;
 
 export const Shadow = {
   card: {

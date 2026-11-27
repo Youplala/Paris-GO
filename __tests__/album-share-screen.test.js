@@ -36,7 +36,13 @@ jest.mock('react-native-maps', () => {
   }
   return { __esModule: true, default: MockMap };
 });
-jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
+jest.mock('react-native-safe-area-context', () => {
+  const { View: MockView } = require('react-native');
+  return {
+    SafeAreaView: (props) => <MockView {...props} />,
+    useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  };
+});
 
 const { AlbumShareScreen } = require('@/screens/album-share');
 
@@ -71,8 +77,8 @@ it('compose la couverture avec la carte satellite de la balade et ses chiffres',
   const covers = renderer.root.findAllByType(Image).filter((node) => node.props.source?.uri === 'file:///tmp/snapshot.jpg');
   expect(covers.length).toBeGreaterThan(0);
   expect(texts()).toEqual(expect.arrayContaining([
-    'Partager la balade', 'Carrousel 4:5', 'Story 9:16', 'PHOTOS REFAITES', '2', 'DE BALADE', '1,0 km',
-    'D’ÉCART', '56 ans', 'SECTEUR', '995', '3 images · crédits des archives sur chaque image',
+    'Partager la balade', 'Publication 4:5', 'Story 9:16', 'PHOTOS REFAITES', '2', 'DE BALADE', '1,0 km',
+    'D’ÉCART', '56 ans', 'SECTEUR', '995', 'Image 1 sur 3',
   ]));
   expect(texts().filter((text) => text.includes('BHVP · fonds')).length).toBeGreaterThanOrEqual(2);
 });
@@ -82,7 +88,7 @@ it('attend les photos, puis enregistre toutes les pages dans Photos', async () =
   await render();
   expect(texts()).toContain('Préparation…');
   await loadAllImages();
-  await act(async () => button('Enregistrer les 3 images dans Photos').props.onPress());
+  await act(async () => button('Enregistrer les 3 images').props.onPress());
   expect(mockCapture).toHaveBeenCalledTimes(3);
   expect(mockCapture.mock.calls[0][1]).toMatchObject({ format: 'jpg', result: 'tmpfile' });
   expect(mockSave).toHaveBeenCalledWith(['file:///slide-1.jpg', 'file:///slide-2.jpg', 'file:///slide-3.jpg']);
@@ -94,8 +100,8 @@ it('partage la page affichée et prévient quand Photos est refusé', async () =
   await render();
   await act(async () => button('Story 9:16').props.onPress());
   await loadAllImages();
-  await act(async () => button('Partager').props.onPress());
+  await act(async () => button('Partager cette image').props.onPress());
   expect(mockShare).toHaveBeenCalledWith('file:///slide-1.jpg', expect.objectContaining({ mimeType: 'image/jpeg' }));
-  await act(async () => button('Enregistrer les 3 images dans Photos').props.onPress());
+  await act(async () => button('Enregistrer les 3 images').props.onPress());
   expect(Alert.alert).toHaveBeenCalledWith('Photos inaccessible', expect.any(String));
 });

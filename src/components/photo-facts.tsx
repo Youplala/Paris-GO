@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Fonts, Kicker, Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
@@ -96,6 +96,9 @@ export function ArchiveFacts({ year, metadata, fallbackAuthor }: ArchiveFactsPro
   const support = [technique, frame].filter(Boolean).join(' · ');
   const locations = metadata?.locations ?? [];
   const notes = metadata?.notes ?? [];
+  // La notice complète reste disponible, repliée : elle ne passe pas devant l'action sur place.
+  const [showDetails, setShowDetails] = useState(false);
+  const hasDetails = Boolean(metadata?.candidateNumber || support || locations.length || notes.length || metadata?.callNumber);
 
   return (
     <Card era={String(year)} tone="archive" title="La photo d’origine">
@@ -115,20 +118,32 @@ export function ArchiveFacts({ year, metadata, fallbackAuthor }: ArchiveFactsPro
         ) : (
           <Text style={styles.factValue}>Photographe non identifié</Text>
         )}
-        {metadata?.candidateNumber ? (
-          <Text style={styles.factDetail}>
-            Candidat n° {metadata.candidateNumber} du concours de {year}
-          </Text>
-        ) : null}
       </Fact>
 
-      {support ? (
+      {hasDetails ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: showDetails }}
+          onPress={() => setShowDetails((current) => !current)}
+          style={({ pressed }) => [styles.detailsToggle, pressed && styles.personLinkPressed]}>
+          <Text style={styles.detailsToggleText}>Détails de l’archive</Text>
+          <SymbolView name={showDetails ? 'chevron.up' : 'chevron.down'} size={14} weight="semibold" tintColor={Palette.parisBlue} />
+        </Pressable>
+      ) : null}
+
+      {showDetails && metadata?.candidateNumber ? (
+        <Fact icon="number" label="Concours de 1970">
+          {`Candidat n° ${metadata.candidateNumber}`}
+        </Fact>
+      ) : null}
+
+      {showDetails && support ? (
         <Fact icon="film" label="Support">
           {support}
         </Fact>
       ) : null}
 
-      {locations.length ? (
+      {showDetails && locations.length ? (
         <Fact icon="signpost.right" label="Rues du reportage">
           <View style={styles.chips}>
             {locations.map((location) => (
@@ -143,13 +158,13 @@ export function ArchiveFacts({ year, metadata, fallbackAuthor }: ArchiveFactsPro
         </Fact>
       ) : null}
 
-      {notes.length ? (
+      {showDetails && notes.length ? (
         <Fact icon="text.quote" label="Note d’archive">
           <Text style={styles.quote}>« {notes.join(' ').replace(/\s+,/g, ',').trim()} »</Text>
         </Fact>
       ) : null}
 
-      {metadata?.callNumber ? (
+      {showDetails && metadata?.callNumber ? (
         <Fact icon="books.vertical" label="Cote BHVP">
           <Text style={styles.code}>{metadata.callNumber}</Text>
         </Fact>
@@ -218,6 +233,8 @@ export function RecaptureFacts({
 }
 
 const styles = StyleSheet.create({
+  detailsToggle: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  detailsToggleText: { ...Typography.body, color: Palette.parisBlue, fontFamily: Fonts.sans, fontWeight: '700' },
   personLink: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, alignSelf: 'flex-start' },
   personLinkPressed: { opacity: 0.7 },
   profilePill: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill, backgroundColor: Palette.goSoft },

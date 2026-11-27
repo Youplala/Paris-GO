@@ -8,8 +8,8 @@ export function getFieldbookViewState(captures: SavedCapture[]): FieldbookViewSt
   if (captures.length === 0) {
     return {
       kind: 'empty',
-      title: 'Aucun brouillon',
-      description: 'Vos prochaines reprises resteront ici, même sans accès à Photos.',
+      title: 'Votre carnet commence ici',
+      description: 'Les photos que vous refaites restent ici, sur votre téléphone.',
     };
   }
   return { kind: 'filled', count: captures.length, captures };

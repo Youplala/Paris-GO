@@ -38,13 +38,14 @@ export function BadgeShelf({ badges }: { badges: readonly Badge[] }) {
 }
 
 const styles = StyleSheet.create({
-  card: { marginTop: Spacing.three, padding: Spacing.three, borderRadius: Radius.large, backgroundColor: Palette.white, ...Shadow.card },
+  card: { padding: Spacing.three, borderRadius: Radius.large, backgroundColor: Palette.white, ...Shadow.card },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   kicker: { ...Kicker, color: Palette.go },
   count: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.display, fontWeight: '800' },
-  row: { marginTop: Spacing.twoHalf, flexDirection: 'row', gap: Spacing.two },
-  badge: { flex: 1, alignItems: 'center' },
-  art: { width: 72, height: 72 },
+  // Les badges passent à la ligne quand le texte est agrandi, au lieu de se tasser.
+  row: { marginTop: Spacing.twoHalf, flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  badge: { flexGrow: 1, flexBasis: 96, alignItems: 'center' },
+  art: { width: 64, height: 64 },
   locked: { opacity: 0.28 },
   title: { ...Typography.caption, marginTop: Spacing.one, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700', textAlign: 'center' },
   titleLocked: { color: Palette.inkSoft },

@@ -128,7 +128,11 @@ it('bascule une carte sur la photo de 1970 et ouvre la comparaison', async () =>
 
 it('renomme la balade et ouvre la feuille de partage', async () => {
   await render();
-  await act(async () => pressable('Renommer la balade').props.onPress());
+  // Renommer passe par le menu « Plus d’options » (troisième choix).
+  const { ActionSheetIOS } = require('react-native');
+  const sheet = jest.spyOn(ActionSheetIOS, 'showActionSheetWithOptions').mockImplementation((options, callback) => callback(2));
+  await act(async () => pressable('Plus d’options').props.onPress());
+  expect(sheet.mock.calls[0][0].options).toEqual(['Vue satellite', 'Voir toute la balade', 'Renommer la balade', 'Annuler']);
   const input = renderer.root.findByType(TextInput);
   await act(async () => input.props.onChangeText('Autour du Champ-de-Mars'));
   await act(async () => input.props.onSubmitEditing());

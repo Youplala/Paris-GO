@@ -1,12 +1,10 @@
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -26,15 +24,14 @@ import {
   type AlbumSlideMap,
   type AlbumSlidePair,
 } from '@/components/album-slides';
-import { Fonts, Palette, Radius, Spacing, Typography } from '@/constants/theme';
+import { PrimaryButton } from '@/components/primary-button';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { SegmentedControl } from '@/components/ui/segmented-control';
+import { Fonts, Palette, Spacing, Typography } from '@/constants/theme';
 import { useAlbum } from '@/hooks/use-album';
 import { groupRouteStops, squareRegionFor, type RouteStep } from '@/services/album-route';
 import { saveImagesToLibrary } from '@/services/fieldbook';
 
-const FORMATS: { key: AlbumSlideFormat; label: string }[] = [
-  { key: 'post', label: 'Carrousel 4:5' },
-  { key: 'story', label: 'Story 9:16' },
-];
 
 /** Au-delà, une image manquante ne bloque plus l'export : la page montre son repli. */
 const IMAGE_WAIT_MS = 8000;
@@ -260,35 +257,17 @@ export function AlbumShareScreen() {
         {deck(undefined, true)}
       </View>
 
-      <View style={styles.header}>
-        <View style={styles.headerSide} />
-        <Text style={styles.title}>Partager la balade</Text>
-        <Pressable
-          accessibilityLabel="Fermer"
-          hitSlop={10}
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.headerSide, styles.close, pressed && styles.pressed]}>
-          <SymbolView name="xmark" size={20} weight="semibold" tintColor={Palette.ink} />
-        </Pressable>
-      </View>
+      <ScreenHeader title="Partager la balade" variant="sheet" safeTop={false} onClose={() => router.back()} />
 
       <View style={styles.formats}>
-        {FORMATS.map((option) => {
-          const active = option.key === format;
-          return (
-            <Pressable
-              key={option.key}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              onPress={() => {
-                void Haptics.selectionAsync();
-                setFormat(option.key);
-              }}
-              style={[styles.format, active && styles.formatActive]}>
-              <Text style={[styles.formatText, active && styles.formatTextActive]}>{option.label}</Text>
-            </Pressable>
-          );
-        })}
+        <SegmentedControl
+          value={format}
+          onChange={setFormat}
+          options={[
+            { value: 'post', label: 'Publication 4:5' },
+            { value: 'story', label: 'Story 9:16' },
+          ]}
+        />
       </View>
 
       <View style={{ height: previewHeight + 24 }}>
@@ -313,42 +292,24 @@ export function AlbumShareScreen() {
         </ScrollView>
       </View>
 
-      <View style={styles.dots}>
-        {Array.from({ length: slideCount }, (_, index) => (
-          <View key={index} style={[styles.dot, index === page && styles.dotActive]} />
-        ))}
-      </View>
-
-      <Text style={styles.note}>
-        {slideCount} images · crédits des archives sur chaque image
-      </Text>
+      <Text style={styles.counter}>Image {page + 1} sur {slideCount}</Text>
 
       <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
+        <PrimaryButton
+          label={ready ? 'Partager cette image' : 'Préparation…'}
+          icon="square.and.arrow.up"
+          loading={busy === 'share'}
           disabled={!ready || Boolean(busy)}
           onPress={() => void shareCurrent()}
-          style={({ pressed }) => [styles.primary, (!ready || busy) && styles.disabled, pressed && styles.pressed]}>
-          {busy === 'share' || !ready ? (
-            <ActivityIndicator color={Palette.white} />
-          ) : (
-            <SymbolView name="square.and.arrow.up" size={19} weight="semibold" tintColor={Palette.white} />
-          )}
-          <Text style={styles.primaryText}>{ready ? 'Partager' : 'Préparation…'}</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Enregistrer les ${slideCount} images dans Photos`}
+        />
+        <PrimaryButton
+          label={`Enregistrer les ${slideCount} images`}
+          icon="square.and.arrow.down"
+          variant="outline"
+          loading={busy === 'save'}
           disabled={!ready || Boolean(busy)}
           onPress={() => void saveAll()}
-          style={({ pressed }) => [styles.secondary, (!ready || busy) && styles.disabled, pressed && styles.pressed]}>
-          {busy === 'save' ? (
-            <ActivityIndicator color={Palette.ink} />
-          ) : (
-            <SymbolView name="arrow.down.to.line" size={19} weight="semibold" tintColor={Palette.ink} />
-          )}
-          <Text style={styles.secondaryText}>Tout enregistrer</Text>
-        </Pressable>
+        />
       </View>
     </View>
   );
@@ -359,15 +320,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Palette.white },
   snapshotMap: { position: 'absolute', top: 0, left: -2000, width: 240, height: 240 },
   captureHost: { position: 'absolute', top: 0, left: -10000 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.three, paddingTop: Spacing.four, paddingBottom: Spacing.two },
-  headerSide: { width: 44, height: 44 },
-  close: { alignItems: 'center', justifyContent: 'center' },
-  title: { flex: 1, textAlign: 'center', color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800', fontSize: 24, lineHeight: 28 },
-  formats: { alignSelf: 'center', flexDirection: 'row', padding: 3, gap: 2, borderRadius: Radius.pill, backgroundColor: Palette.fog, marginTop: Spacing.one },
-  format: { minHeight: 34, paddingHorizontal: Spacing.three, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
-  formatActive: { backgroundColor: Palette.ink },
-  formatText: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '700' },
-  formatTextActive: { color: Palette.white },
+  formats: { paddingHorizontal: Spacing.three },
   preview: {
     overflow: 'hidden',
     backgroundColor: Palette.blueDeep,
@@ -376,15 +329,6 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 10 },
   },
-  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: Spacing.one },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Palette.line },
-  dotActive: { width: 18, backgroundColor: Palette.go },
-  note: { ...Typography.caption, marginTop: Spacing.twoHalf, textAlign: 'center', color: Palette.inkSoft, fontFamily: Fonts.sans },
-  actions: { marginTop: 'auto', flexDirection: 'row', gap: Spacing.twoHalf, paddingHorizontal: Spacing.four, paddingTop: Spacing.three },
-  primary: { flex: 1, minHeight: 58, borderRadius: Radius.pill, backgroundColor: Palette.ink, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
-  primaryText: { color: Palette.white, fontFamily: Fonts.sans, fontWeight: '700', fontSize: 17, lineHeight: 22 },
-  secondary: { flex: 1, minHeight: 58, borderRadius: Radius.pill, borderWidth: 1.5, borderColor: Palette.line, backgroundColor: Palette.white, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
-  secondaryText: { color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700', fontSize: 17, lineHeight: 22 },
-  disabled: { opacity: 0.5 },
-  pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+  counter: { ...Typography.body, textAlign: 'center', color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '600' },
+  actions: { marginTop: 'auto', gap: Spacing.twoHalf, paddingHorizontal: Spacing.three, paddingTop: Spacing.three },
 });

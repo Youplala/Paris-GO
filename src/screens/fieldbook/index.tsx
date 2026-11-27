@@ -17,22 +17,21 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Illustrations } from '@/constants/illustrations';
 import { BadgeShelf } from '@/components/badge-shelf';
+import { PrimaryButton } from '@/components/primary-button';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useStations } from '@/providers/stations-provider';
 import { computeBadges } from '@/services/badges';
 import { AlbumCoverCard } from '@/components/album-cover-card';
 import {
   Fonts,
-  HitSize,
   Kicker,
   Palette,
   Radius,
-  Shadow,
   Spacing,
-  Stat,
   Typography,
 } from '@/constants/theme';
 import { useAlbumReferences } from '@/hooks/use-album-references';
@@ -126,13 +125,13 @@ export function FieldbookScreen() {
       return;
     }
     await Share.share({
-      message: `Ma reprise de ${capture.stationName ?? 'Paris'} avec Paris GO.`,
+      message: `Ma photo de ${capture.stationName ?? 'Paris'}, 1970 et aujourd’hui, avec Paris GO.`,
     });
   };
 
   const confirmDelete = (capture: SavedCapture) => {
     Alert.alert(
-      'Supprimer ce brouillon ?',
+      'Supprimer cette photo ?',
       'La copie privée dans Paris GO sera supprimée. La copie éventuellement enregistrée dans Photos restera intacte.',
       [
         { text: 'Annuler', style: 'cancel' },
@@ -143,7 +142,7 @@ export function FieldbookScreen() {
             void deleteCapture(capture.id)
               .then(() => setCaptures((current) => current.filter((item) => item.id !== capture.id)))
               .catch(() =>
-                Alert.alert('Suppression impossible', 'Le brouillon n’a pas été supprimé.'),
+                Alert.alert('Suppression impossible', 'La photo n’a pas été supprimée.'),
               );
           },
         },
@@ -169,7 +168,7 @@ export function FieldbookScreen() {
     void Haptics.selectionAsync();
     const actions = [
       { label: 'Comparer avec la photo d’archive', run: () => compare(capture) },
-      { label: 'Reprendre le dépôt', run: () => resumeSubmission(capture) },
+      { label: 'Contribuer à l’Observatoire', run: () => resumeSubmission(capture) },
       { label: 'Partager', run: () => void share(capture) },
       { label: 'Supprimer', run: () => confirmDelete(capture), destructive: true },
     ];
@@ -195,20 +194,15 @@ export function FieldbookScreen() {
     ]);
   };
 
+  const summary = [
+    `${albums.length} ${albums.length > 1 ? 'balades' : 'balade'}`,
+    `${state.kind === 'filled' ? state.count : 0} ${state.kind === 'filled' && state.count > 1 ? 'photos' : 'photo'}`,
+    totalDistance,
+  ].filter(Boolean).join(' · ');
+
   return (
     <View style={styles.screen}>
-      <SafeAreaView edges={['top']} style={styles.header}>
-        <View style={styles.headerCopy}>
-          <Text style={styles.kicker}>VOS REPRISES</Text>
-          <Text accessibilityRole="header" style={styles.title}>Carnet</Text>
-        </View>
-        <Pressable
-          accessibilityLabel="Fermer le carnet"
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.close, pressed && styles.pressed]}>
-          <SymbolView name="xmark" size={16} weight="semibold" tintColor={Palette.ink} />
-        </Pressable>
-      </SafeAreaView>
+      <ScreenHeader title="Carnet" variant="sheet" onClose={() => router.back()} />
 
       {loading ? (
         <View style={styles.center}>
@@ -220,60 +214,30 @@ export function FieldbookScreen() {
           <SymbolView name="exclamationmark.triangle.fill" size={30} tintColor={Palette.copper} />
           <Text style={styles.emptyTitle}>Carnet indisponible</Text>
           <Text style={styles.emptyCopy}>{error}</Text>
-          <Pressable onPress={() => void load()} style={styles.retry}>
-            <Text style={styles.retryText}>Réessayer</Text>
-          </Pressable>
+          <PrimaryButton label="Réessayer" onPress={() => void load()} style={styles.emptyAction} />
         </View>
       ) : state.kind === 'empty' ? (
-        <View style={styles.center}>
+        // Défile dès que le texte est agrandi : rien ne doit passer sous l'en-tête ou hors de l'écran.
+        <ScrollView contentContainerStyle={styles.emptyScroll}>
           <Image source={Illustrations.emptyFieldbook} style={styles.emptyIllustration} contentFit="contain" />
           <Text style={styles.emptyTitle}>{state.title}</Text>
           <Text style={styles.emptyCopy}>{state.description}</Text>
-          <Pressable onPress={() => router.replace('/map')} style={styles.retry}>
-            <Text style={styles.retryText}>Choisir une photo de 1970</Text>
-          </Pressable>
-          <View style={styles.emptyBadges}>
-            <BadgeShelf badges={badges} />
-          </View>
-        </View>
+          <PrimaryButton label="Choisir une photo de 1970" onPress={() => router.replace('/map')} style={styles.emptyAction} />
+        </ScrollView>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
-          <BadgeShelf badges={badges} />
-
-          <View style={[styles.summary, styles.summaryAfterBadges]}>
-            {[
-              { value: String(albums.length), label: albums.length > 1 ? 'balades' : 'balade' },
-              { value: String(state.count), label: state.count > 1 ? 'reprises' : 'reprise' },
-              ...(totalDistance ? [{ value: totalDistance, label: 'à pied' }] : []),
-            ].map((item) => (
-              <View key={item.label} style={styles.summaryItem}>
-                <Text style={styles.summaryValue} adjustsFontSizeToFit numberOfLines={1}>{item.value}</Text>
-                <Text style={styles.summaryLabel}>{item.label}</Text>
-              </View>
-            ))}
-          </View>
+          <Text style={styles.summary}>{summary}</Text>
 
           {albums.length > 0 ? (
-            <View accessibilityRole="tablist" style={styles.segment}>
-              {([
-                ['albums', `Balades · ${albums.length}`],
-                ['photos', `Photos · ${state.count}`],
-              ] as const).map(([key, label]) => {
-                const active = view === key;
-                return (
-                  <Pressable
-                    key={key}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: active }}
-                    onPress={() => {
-                      void Haptics.selectionAsync();
-                      setView(key);
-                    }}
-                    style={[styles.segmentItem, active && styles.segmentItemActive]}>
-                    <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{label}</Text>
-                  </Pressable>
-                );
-              })}
+            <View style={styles.segment}>
+              <SegmentedControl
+                value={view}
+                onChange={setView}
+                options={[
+                  { value: 'albums', label: `Balades · ${albums.length}` },
+                  { value: 'photos', label: `Photos · ${state.count}` },
+                ]}
+              />
             </View>
           ) : null}
 
@@ -287,20 +251,16 @@ export function FieldbookScreen() {
                   onPress={() => router.push({ pathname: '/album/[id]', params: { id: album.id } })}
                 />
               ))}
-              <Text style={styles.footnote}>
-                Une balade par jour de reprises. Tout reste sur cet appareil jusqu’à ce que vous le partagiez.
-              </Text>
             </View>
           ) : (
             <View style={styles.grid}>
               {state.captures.map((capture) => {
                 const reference = references.get(capture.id);
-                const ready = capture.preparation.current.ready;
                 return (
                   <Pressable
                     key={capture.id}
-                    accessibilityHint="Ouvre les actions de cette reprise"
-                    accessibilityLabel={`${reference?.label ?? capture.stationName ?? 'Reprise'}, ${formatDate(capture.createdAt)}, dépôt ${ready ? 'prêt' : 'à préparer'}`}
+                    accessibilityHint="Ouvre les actions de cette photo"
+                    accessibilityLabel={`${reference?.label ?? capture.stationName ?? 'Photo'}, ${formatDate(capture.createdAt)}`}
                     accessibilityRole="button"
                     onPress={() => openMenu(capture)}
                     style={({ pressed }) => [styles.tile, { width: tileWidth }, pressed && styles.tilePressed]}>
@@ -318,18 +278,17 @@ export function FieldbookScreen() {
                           <Image source={reference.image} contentFit="cover" style={StyleSheet.absoluteFill} />
                         </View>
                       ) : null}
-                      <View style={[styles.tileStatus, ready ? styles.tileStatusReady : styles.tileStatusTodo]}>
-                        <SymbolView name={ready ? 'checkmark' : 'arrow.up'} size={10} weight="bold" tintColor={Palette.white} />
-                        <Text style={styles.tileStatusText}>{ready ? 'Prête' : 'À déposer'}</Text>
-                      </View>
                     </View>
-                    <Text style={styles.tileTitle} numberOfLines={1}>{reference?.label ?? capture.stationName ?? `Point ${capture.stationId}`}</Text>
+                    <Text style={styles.tileTitle} numberOfLines={2}>{reference?.label ?? capture.stationName ?? `Point ${capture.stationId}`}</Text>
                     <Text style={styles.tileMeta} numberOfLines={1}>{formatDate(capture.createdAt)}</Text>
                   </Pressable>
                 );
               })}
             </View>
           )}
+
+          {/* Les récompenses viennent après les souvenirs, jamais avant. */}
+          <BadgeShelf badges={badges} />
         </ScrollView>
       )}
     </View>
@@ -338,59 +297,24 @@ export function FieldbookScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Palette.fog },
-  header: {
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.two,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-  },
-  headerCopy: { flex: 1 },
-  kicker: { ...Kicker, color: Palette.go },
-  title: { ...Typography.display, fontSize: 36, lineHeight: 40, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
-  close: {
-    width: HitSize,
-    height: HitSize,
-    marginBottom: 2,
-    borderRadius: HitSize / 2,
-    backgroundColor: Palette.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadow.card,
-  },
   center: { flex: 1, padding: Spacing.four, alignItems: 'center', justifyContent: 'center' },
+  emptyScroll: { flexGrow: 1, padding: Spacing.four, alignItems: 'center', justifyContent: 'center' },
   status: { ...Typography.caption, marginTop: Spacing.two, color: Palette.inkSoft, fontFamily: Fonts.sans },
-  emptyIllustration: { width: 200, height: 200 },
-  emptyTitle: { ...Typography.display, marginTop: Spacing.three, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
-  emptyCopy: { ...Typography.body, marginTop: Spacing.two, maxWidth: 300, textAlign: 'center', color: Palette.inkSoft, fontFamily: Fonts.sans },
-  retry: { marginTop: Spacing.four, minHeight: 52, paddingHorizontal: Spacing.four, borderRadius: Radius.pill, backgroundColor: Palette.go, alignItems: 'center', justifyContent: 'center' },
-  retryText: { ...Typography.body, color: Palette.white, fontFamily: Fonts.sans, fontWeight: '700' },
-  list: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two, paddingBottom: Spacing.six },
-  summary: { flexDirection: 'row', gap: Spacing.two },
-  summaryAfterBadges: { marginTop: Spacing.three },
-  emptyBadges: { alignSelf: 'stretch', marginTop: Spacing.three },
-  summaryItem: { flex: 1, paddingVertical: Spacing.twoHalf, paddingHorizontal: Spacing.twoHalf, borderRadius: Radius.medium, backgroundColor: Palette.white, ...Shadow.card },
-  summaryValue: { ...Stat, fontSize: 26, lineHeight: 30, color: Palette.parisBlue },
-  summaryLabel: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '600' },
-  segment: { flexDirection: 'row', padding: 3, marginTop: Spacing.three, marginBottom: Spacing.three, borderRadius: Radius.pill, backgroundColor: Palette.blueMist },
-  segmentItem: { flex: 1, minHeight: 38, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
-  segmentItemActive: { backgroundColor: Palette.ink },
-  segmentText: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '700' },
-  segmentTextActive: { color: Palette.white },
+  emptyIllustration: { width: 160, height: 160 },
+  emptyTitle: { ...Typography.title, marginTop: Spacing.three, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800', textAlign: 'center' },
+  emptyCopy: { ...Typography.body, marginTop: Spacing.two, maxWidth: 320, textAlign: 'center', color: Palette.inkSoft, fontFamily: Fonts.sans },
+  emptyAction: { marginTop: Spacing.four, alignSelf: 'stretch' },
+  list: { paddingHorizontal: Spacing.three, paddingTop: Spacing.one, paddingBottom: Spacing.six, gap: Spacing.three },
+  summary: { ...Typography.body, color: Palette.inkSoft, fontFamily: Fonts.sans, fontWeight: '600' },
+  segment: {},
   albums: { gap: Spacing.three },
-  footnote: { ...Typography.caption, textAlign: 'center', color: Palette.inkSoft, fontFamily: Fonts.sans, paddingHorizontal: Spacing.three },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.twoHalf },
   tile: { marginBottom: Spacing.two },
   tilePressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
-  tilePhoto: { borderRadius: Radius.medium + 4, overflow: 'hidden', backgroundColor: Palette.blueMist },
-  tileInset: { position: 'absolute', left: Spacing.two, bottom: Spacing.two, width: 52, height: 40, borderRadius: 10, overflow: 'hidden', borderWidth: 2, borderColor: Palette.white, backgroundColor: Palette.archive },
-  tileStatus: { position: 'absolute', top: Spacing.two, right: Spacing.two, flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: Radius.pill },
-  tileStatusReady: { backgroundColor: Palette.lichen },
-  tileStatusTodo: { backgroundColor: 'rgba(8, 17, 22, 0.72)' },
-  tileStatusText: { color: Palette.white, fontFamily: Fonts.sans, fontWeight: '700', fontSize: 11, lineHeight: 14 },
+  tilePhoto: { borderRadius: Radius.medium, overflow: 'hidden', backgroundColor: Palette.blueMist },
+  tileInset: { position: 'absolute', left: Spacing.two, bottom: Spacing.two, width: 52, height: 40, borderRadius: Radius.small, overflow: 'hidden', borderWidth: 2, borderColor: Palette.white, backgroundColor: Palette.archive },
   tileTitle: { ...Typography.caption, marginTop: Spacing.two, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
   tileMeta: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   simulatedThumbnail: { alignItems: 'center', justifyContent: 'center', gap: Spacing.one },
   simulatedLabel: { ...Kicker, color: Palette.parisBlue },
-  pressed: { opacity: 0.8, transform: [{ scale: 0.95 }] },
 });

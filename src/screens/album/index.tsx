@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActionSheetIOS,
   ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
@@ -20,7 +21,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { PhotoPin } from '@/components/album/photo-pin';
 import { StepCarousel, type AlbumStep, type StepCarouselHandle } from '@/components/album/step-carousel';
 import { StepScrubber } from '@/components/album/step-scrubber';
-import { GlassButtonColumn, GlassIconButton } from '@/components/glass-icon-button';
+import { GlassLabelButton } from '@/components/glass-icon-button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Fonts, HitSize, Kicker, Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useAlbum } from '@/hooks/use-album';
 import { groupRouteStops, partialRoute, type RouteStep } from '@/services/album-route';
@@ -48,7 +50,7 @@ export function AlbumScreen() {
   const [archiveIndex, setArchiveIndex] = useState<number>();
   const [playing, setPlaying] = useState(false);
   const [routeProgress, setRouteProgress] = useState(0);
-  const [mapType, setMapType] = useState<MapType>('hybridFlyover');
+  const [mapType, setMapType] = useState<MapType>('mutedStandard');
   const mapReady = useRef(false);
   const albumCaptures = useMemo(() => entries.map((entry) => entry.capture), [entries]);
   const steps: AlbumStep[] = useMemo(
@@ -75,7 +77,7 @@ export function AlbumScreen() {
   const stops = useMemo(() => groupRouteStops(route), [route]);
   const drawnRoute = useMemo(() => partialRoute(route, routeProgress), [route, routeProgress]);
 
-  const mapPadding = { top: insets.top + 150, bottom: 300 + insets.bottom, left: 32, right: 84 };
+  const mapPadding = { top: insets.top + 150, bottom: 360 + insets.bottom, left: 32, right: 32 };
 
   const flyToStep = useCallback(
     (index: number) => {
@@ -203,6 +205,21 @@ export function AlbumScreen() {
     router.push({ pathname: '/album-share/[id]', params: { id: album.id } });
   };
 
+  // Les réglages secondaires restent à portée, sans encombrer la carte.
+  const openMenu = () => {
+    void Haptics.selectionAsync();
+    const satellite = mapType === 'hybridFlyover';
+    const actions = [
+      { label: satellite ? 'Afficher le plan' : 'Vue satellite', run: () => setMapType(satellite ? 'mutedStandard' : 'hybridFlyover') },
+      { label: 'Voir toute la balade', run: () => { setPlaying(false); flyToOverview(); } },
+      { label: 'Renommer la balade', run: startRename },
+    ];
+    ActionSheetIOS.showActionSheetWithOptions(
+      { options: [...actions.map((action) => action.label), 'Annuler'], cancelButtonIndex: actions.length },
+      (index) => actions[index]?.run(),
+    );
+  };
+
   const startRename = () => {
     void Haptics.selectionAsync();
     setDraftTitle(title);
@@ -314,49 +331,26 @@ export function AlbumScreen() {
       ))}
 
       <View style={[styles.header, { paddingTop: insets.top + Spacing.two }]} pointerEvents="box-none">
-        <GlassIconButton systemImage="chevron.left" accessibilityLabel="Revenir au carnet" onPress={() => router.back()} />
-        <Pressable
-          accessibilityHint="Renommer la balade"
-          accessibilityRole="button"
-          onPress={startRename}
-          style={styles.titleBlock}>
+        <IconButton icon="chevron.left" variant="media" accessibilityLabel="Revenir au carnet" onPress={() => router.back()} />
+        <View style={styles.titleBlock}>
           <Text style={styles.kicker} numberOfLines={1}>{day}</Text>
-          <Text style={styles.title} numberOfLines={2}>{title}</Text>
+          <Text accessibilityRole="header" style={styles.title} numberOfLines={2}>{title}</Text>
           <Text style={styles.summary} numberOfLines={1}>{summary}</Text>
-        </Pressable>
-        <View style={styles.rightColumn}>
-          <GlassIconButton systemImage="square.and.arrow.up" accessibilityLabel="Partager la balade" onPress={openShare} />
-          <GlassButtonColumn
-            actions={[
-              {
-                systemImage: playing ? 'pause.fill' : 'play.fill',
-                accessibilityLabel: playing ? 'Mettre en pause' : 'Revivre la balade',
-                prominent: playing,
-                onPress: togglePlay,
-              },
-              {
-                systemImage: mapType === 'hybridFlyover' ? 'map' : 'globe.europe.africa.fill',
-                accessibilityLabel: mapType === 'hybridFlyover' ? 'Afficher le plan' : 'Afficher la vue satellite',
-                onPress: () => {
-                  void Haptics.selectionAsync();
-                  setMapType((current) => (current === 'hybridFlyover' ? 'mutedStandard' : 'hybridFlyover'));
-                },
-              },
-              {
-                systemImage: 'scope',
-                accessibilityLabel: 'Voir toute la balade',
-                onPress: () => {
-                  void Haptics.selectionAsync();
-                  setPlaying(false);
-                  flyToOverview();
-                },
-              },
-            ]}
-          />
         </View>
+        <IconButton icon="ellipsis" variant="media" accessibilityLabel="Plus d’options" onPress={openMenu} />
       </View>
 
       <View style={[styles.bottom, { paddingBottom: insets.bottom + Spacing.three }]} pointerEvents="box-none">
+        <View style={styles.actions}>
+          <GlassLabelButton
+            systemImage={playing ? 'pause.fill' : 'play.fill'}
+            label={playing ? 'Pause' : 'Revivre'}
+            accessibilityLabel={playing ? 'Mettre en pause' : 'Revivre la balade'}
+            prominent={playing}
+            onPress={togglePlay}
+          />
+          <GlassLabelButton systemImage="square.and.arrow.up" label="Partager" accessibilityLabel="Partager la balade" onPress={openShare} />
+        </View>
         <StepScrubber
           count={steps.length}
           index={selected}
@@ -423,6 +417,7 @@ const styles = StyleSheet.create({
   bottomShade: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(8, 17, 22, 0.1)' },
   header: { position: 'absolute', top: 0, left: Spacing.three, right: Spacing.three, flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.twoHalf },
   titleBlock: { flex: 1, alignItems: 'center', paddingTop: 2 },
+  actions: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.twoHalf },
   kicker: { ...Kicker, color: Palette.brass, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 6 },
   title: { marginTop: 2, color: Palette.white, fontFamily: Fonts.display, fontWeight: '800', fontSize: 28, lineHeight: 31, textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.55)', textShadowRadius: 8 },
   summary: { marginTop: 2, color: 'rgba(255,255,255,0.88)', fontFamily: Fonts.sans, fontWeight: '600', fontSize: 13, lineHeight: 17, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 6 },

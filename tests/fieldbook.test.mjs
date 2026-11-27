@@ -185,7 +185,7 @@ test('conserve les états structurés de préparation et la précision de positi
 test('expose des états de rendu explicites pour un carnet vide ou rempli', async () => {
   const empty = getFieldbookViewState([]);
   assert.equal(empty.kind, 'empty');
-  assert.equal(empty.title, 'Aucun brouillon');
+  assert.equal(empty.title, 'Votre carnet commence ici');
 
   const { store } = setup();
   const capture = await store.save({

@@ -33,7 +33,7 @@ import { GlassSurface } from '@/components/glass-surface';
 import { PhotoViewer } from '@/components/photo-viewer';
 import { PrimaryButton } from '@/components/primary-button';
 import { SourcePill } from '@/components/source-pill';
-import { Fonts, Kicker, Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { Fonts, Kicker, Palette, Radius, Shadow, Spacing, Surface, Typography } from '@/constants/theme';
 import { PROJECT_URL } from '@/constants/legal';
 import { PARIS_CENTER } from '@/data/archive';
 import { useBhvpImages } from '@/hooks/use-bhvp-images';
@@ -961,7 +961,7 @@ const styles = StyleSheet.create({
   },
   filterChips: { flexDirection: 'row', gap: Spacing.one },
   filterChip: {
-    minHeight: 28,
+    minHeight: 40,
     paddingHorizontal: Spacing.twoHalf,
     borderRadius: Radius.pill,
     backgroundColor: 'rgba(255,255,255,0.12)',
@@ -975,10 +975,10 @@ const styles = StyleSheet.create({
     padding: 3,
     gap: 2,
     borderRadius: Radius.pill,
-    backgroundColor: 'rgba(8, 17, 22, 0.78)',
+    backgroundColor: Surface.mediaScrim,
   },
   eraOption: {
-    minHeight: 34,
+    minHeight: 40,
     minWidth: 58,
     paddingHorizontal: Spacing.twoHalf,
     borderRadius: Radius.pill,
@@ -1010,7 +1010,7 @@ const styles = StyleSheet.create({
   recaptureAvatarText: { ...Typography.caption, color: Palette.parisBlue, fontFamily: Fonts.display, fontWeight: '700' },
   recaptureRowBody: { flex: 1 },
   recaptureDoneLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  recaptureDoneText: { ...Typography.caption, color: Palette.lichen, fontFamily: Fonts.sans, fontWeight: '700' },
+  recaptureDoneText: { ...Typography.caption, color: Palette.lichenDeep, fontFamily: Fonts.sans, fontWeight: '700' },
   recaptureRowAuthor: { ...Typography.body, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
   recaptureRowDate: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   recaptureRowAction: { ...Typography.caption, color: Palette.go, fontFamily: Fonts.sans, fontWeight: '700' },

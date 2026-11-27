@@ -48,8 +48,8 @@ const pressable = (label) => renderer.root.findAll((node) => typeof node.props.o
 it('présente le photographe de 1970, ses chiffres, ses rues et ses secteurs', async () => {
   await act(async () => { renderer = create(<PhotographerScreen />); });
   expect(texts()).toEqual(expect.arrayContaining([
-    'PHOTOGRAPHE DU CONCOURS DE 1970', 'Georges E.', 'Candidat n° 22667 · « C’était Paris en 1970 »',
-    '3', 'photos', '1', 'secteur', 'refaite', '33 %', 'avenue de Suffren', 'Secteur 995', '3 photos · 1 refaite', 'Martin de P.',
+    'Photographe de 1970', 'Georges E.', '3 photos · 1 secteur · candidat n° 22667',
+    '1 de ses 3 photos a déjà été refaite', 'avenue de Suffren', 'Secteur 995', '3 photos · 1 refaite', 'Martin de P.',
   ]));
   expect(renderer.root.findAllByProps({ testID: 'map-marker' }).filter((node) => typeof node.type === 'string')).toHaveLength(1);
 });

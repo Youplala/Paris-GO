@@ -1,7 +1,7 @@
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
 
-import { Fonts, Palette, Radius, Spacing } from '@/constants/theme';
+import { Fonts, Palette, Radius, Spacing, Typography } from '@/constants/theme';
 
 type PrimaryButtonProps = {
   label: string;
@@ -64,6 +64,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.threeHalf,
+    paddingVertical: Spacing.twoHalf,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -83,11 +84,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Palette.parisBlue,
   },
+  // Le contrat de toutes les actions : 52 pt de haut, texte courant en gras.
   label: {
+    ...Typography.body,
     fontFamily: Fonts.sans,
     fontWeight: '700',
-    fontSize: 17,
-    letterSpacing: -0.2,
   },
   primaryLabel: {
     color: Palette.white,
