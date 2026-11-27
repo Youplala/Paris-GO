@@ -2,11 +2,13 @@ import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BeforeAfterSlider } from '@/components/before-after-slider';
 import { ContributorAvatar } from '@/components/contributor-avatar';
+import { ParisGoBadge } from '@/components/paris-go-badge';
 import { SourcePill } from '@/components/source-pill';
 import { IconButton } from '@/components/ui/icon-button';
 import { YearPill } from '@/components/ui/year-pill';
@@ -48,9 +50,72 @@ function PhotoTile({ detail, onOpen }: { detail: StationDetail; onOpen: () => vo
   );
 }
 
+/** Grand format : la comparaison avant/après sur toute la largeur, la légende dessous. */
+function PhotoCard({ detail, onOpen }: { detail: StationDetail; onOpen: () => void }) {
+  return (
+    <View style={styles.card}>
+      {detail.referenceImage && detail.recaptureImage ? (
+        <BeforeAfterSlider before={detail.referenceImage} after={detail.recaptureImage}
+          beforeLabel={String(detail.year)} afterLabel={detail.recaptureDate?.slice(0, 4) ?? '2026'}
+          borderRadius={0} onPressSide={onOpen} />
+      ) : null}
+      <Pressable
+        accessibilityLabel={`Ouvrir la photo refaite ${detail.name}`}
+        accessibilityRole="button"
+        onPress={onOpen}
+        style={({ pressed }) => [styles.cardCaption, pressed && styles.pressed]}>
+        <ParisGoBadge photo={detail} />
+        <Text style={styles.cardTitle} numberOfLines={2}>{detail.name}</Text>
+        <View style={styles.cardMetaRow}>
+          <Text style={styles.cardMeta}>
+            {arrondissementLabel(detail.arrondissement)}
+            {detail.recaptureDate ? ` · ${dateFormat.format(new Date(`${detail.recaptureDate}T12:00:00`))}` : ''}
+          </Text>
+          <SymbolView name="arrow.right" size={15} tintColor={Palette.parisBlue} />
+        </View>
+      </Pressable>
+    </View>
+  );
+}
+
+type Layout = 'large' | 'grid';
+
+const LAYOUTS: readonly { value: Layout; icon: 'rectangle.portrait' | 'square.grid.2x2'; accessibilityLabel: string }[] = [
+  { value: 'large', icon: 'rectangle.portrait', accessibilityLabel: 'Grand format, avant et après' },
+  { value: 'grid', icon: 'square.grid.2x2', accessibilityLabel: 'Grille' },
+];
+
+/** Petit sélecteur à deux icônes : discret, mais chaque icône garde une zone tactile de 44 pt. */
+function LayoutToggle({ value, onChange }: { value: Layout; onChange: (layout: Layout) => void }) {
+  return (
+    <View accessibilityRole="tablist" style={styles.toggle}>
+      {LAYOUTS.map((option) => {
+        const active = option.value === value;
+        return (
+          <Pressable
+            key={option.value}
+            accessibilityRole="tab"
+            accessibilityLabel={option.accessibilityLabel}
+            accessibilityState={{ selected: active }}
+            hitSlop={4}
+            onPress={() => {
+              if (active) return;
+              void Haptics.selectionAsync();
+              onChange(option.value);
+            }}
+            style={[styles.toggleItem, active && styles.toggleItemActive]}>
+            <SymbolView name={option.icon} size={16} weight="semibold" tintColor={active ? Palette.white : Palette.inkSoft} />
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 /**
  * Profil d'une personne qui refait les photos aujourd'hui, en miroir de celui des photographes
- * de 1970 : qui, combien, puis toutes ses photos en grille pour retrouver la bonne d'un coup d'œil.
+ * de 1970 : qui, combien, puis ses photos en grand format (avant/après) ou en grille pour
+ * retrouver la bonne d'un coup d'œil.
  */
 export function ContributorScreen() {
   const router = useRouter();
@@ -62,6 +127,7 @@ export function ContributorScreen() {
   );
   const displayName = formatContributorName(contributor?.name ?? requestedName) || 'Photographe';
   const photos = useMemo(() => findContributorSubmissions(requestedName), [findContributorSubmissions, requestedName]);
+  const [layout, setLayout] = useState<Layout>('large');
 
   const summary = useMemo(() => {
     const areas = new Set(photos.map((photo) => arrondissementLabel(photo.arrondissement)));
@@ -99,7 +165,15 @@ export function ContributorScreen() {
           ) : null}
         </View>
       ) : null}
-      {photos.length ? <Text style={styles.galleryTitle}>Ses photos, les plus récentes d’abord</Text> : null}
+      {photos.length ? (
+        <View style={styles.galleryHeader}>
+          <View style={styles.galleryCopy}>
+            <Text accessibilityRole="header" style={styles.galleryTitle}>Ses photos</Text>
+            <Text style={styles.gallerySort}>Les plus récentes d’abord</Text>
+          </View>
+          <LayoutToggle value={layout} onChange={setLayout} />
+        </View>
+      ) : null}
     </View>
   );
 
@@ -108,8 +182,10 @@ export function ContributorScreen() {
       <FlatList
         data={photos}
         keyExtractor={(photo) => photo.id}
-        numColumns={2}
-        columnWrapperStyle={styles.gridRow}
+        // Changer le nombre de colonnes d'une FlatList impose de la recréer.
+        key={layout}
+        numColumns={layout === 'grid' ? 2 : 1}
+        columnWrapperStyle={layout === 'grid' ? styles.gridRow : undefined}
         contentContainerStyle={styles.content}
         ListHeaderComponent={header}
         ListFooterComponent={<View style={styles.sourceNote}><SourcePill version={snapshotVersion} /></View>}
@@ -120,7 +196,10 @@ export function ContributorScreen() {
             <Text style={styles.emptyText}>Revenez à la communauté pour chercher un autre prénom.</Text>
           </View>
         }
-        renderItem={({ item }) => <PhotoTile detail={item} onOpen={() => openPhoto(item)} />}
+        renderItem={({ item }) =>
+          layout === 'grid'
+            ? <PhotoTile detail={item} onOpen={() => openPhoto(item)} />
+            : <PhotoCard detail={item} onOpen={() => openPhoto(item)} />}
         initialNumToRender={8}
         showsVerticalScrollIndicator={false}
       />
@@ -140,7 +219,19 @@ const styles = StyleSheet.create({
   leadText: { ...Typography.body, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '600' },
   leadValue: { color: Palette.go, fontFamily: Fonts.display, fontWeight: '800' },
   leadHint: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
-  galleryTitle: { ...Typography.title, marginTop: Spacing.four, marginBottom: Spacing.twoHalf, paddingHorizontal: Spacing.three, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
+  galleryHeader: { marginTop: Spacing.four, marginBottom: Spacing.twoHalf, paddingHorizontal: Spacing.three, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  galleryCopy: { flex: 1 },
+  galleryTitle: { ...Typography.title, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
+  gallerySort: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
+  toggle: { flexDirection: 'row', padding: 3, borderRadius: Radius.pill, backgroundColor: Palette.blueMist },
+  toggleItem: { width: 40, height: 34, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
+  toggleItemActive: { backgroundColor: Palette.parisBlue },
+  // Grand format : photo pleine largeur, légende attachée, puis un espace avant la suivante.
+  card: { marginBottom: Spacing.twoHalf, borderBottomWidth: 1, borderBottomColor: Palette.line },
+  cardCaption: { backgroundColor: Palette.white, paddingTop: Spacing.twoHalf, paddingBottom: Spacing.four, paddingHorizontal: Spacing.three },
+  cardTitle: { ...Typography.title, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
+  cardMetaRow: { marginTop: Spacing.one, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  cardMeta: { ...Typography.body, flex: 1, color: Palette.inkSoft, fontFamily: Fonts.sans },
   gridRow: { paddingHorizontal: Spacing.three, gap: Spacing.twoHalf },
   tile: { flex: 1, maxWidth: '50%', marginBottom: Spacing.three },
   tilePhoto: { aspectRatio: 4 / 5, borderRadius: Radius.medium, overflow: 'hidden', backgroundColor: Palette.archive },
