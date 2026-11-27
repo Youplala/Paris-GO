@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { Image, type ImageSource } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
-import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
@@ -25,7 +25,7 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BeforeAfterSlider } from '@/components/before-after-slider';
-import { ParisGridMap } from '@/components/paris-grid-map';
+import { Illustrations } from '@/constants/illustrations';
 import { PrimaryButton } from '@/components/primary-button';
 import {
   Fonts,
@@ -44,7 +44,6 @@ import { trySetLocationPreference } from '@/services/location-preference';
 import { onboardingImageSource } from '@/services/onboarding-images';
 import {
   completeOnboarding,
-  HISTORIC_GRID_COUNT,
   LOCATION_PRIVACY_COPY,
 } from '@/services/onboarding';
 import type { StationDetail } from '@/types/station';
@@ -117,20 +116,19 @@ function WelcomeHero({
   );
 }
 
+/** Une étape de la mission : un dessin, une phrase en gras, une phrase courte. */
 function MissionStep({
-  icon,
+  illustration,
   title,
   copy,
 }: {
-  icon: SymbolViewProps['name'];
+  illustration: ImageSource;
   title: string;
   copy: string;
 }) {
   return (
-    <View style={styles.step}>
-      <View style={styles.stepIcon}>
-        <SymbolView name={icon} size={20} tintColor={Palette.go} />
-      </View>
+    <View accessible accessibilityLabel={`${title}. ${copy}`} style={styles.step}>
+      <Image source={illustration} style={styles.stepIllustration} contentFit="contain" />
       <View style={styles.stepCopy}>
         <Text style={styles.stepTitle}>{title}</Text>
         <Text style={styles.stepText}>{copy}</Text>
@@ -215,7 +213,7 @@ function Radar({ images, size }: { images: ImageSource[]; size: number }) {
 
 export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const { width, height } = useWindowDimensions();
-  const { publishedSubmissions, grid } = useStations();
+  const { publishedSubmissions } = useStations();
   const { locate, loading: locating } = useUserLocation();
   const listRef = useRef<FlatList<Page>>(null);
   const [pageIndex, setPageIndex] = useState(0);
@@ -223,7 +221,6 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const [finishing, setFinishing] = useState(false);
 
   const heroHeight = Math.min(400, Math.max(240, height * 0.37));
-  const gridHeight = Math.min(260, Math.max(190, height * 0.28));
   const radarSize = Math.min(270, width - Spacing.five * 2, height * 0.3);
   const finalPage = pageIndex === PAGES.length - 1;
   const radarImages = publishedSubmissions
@@ -307,23 +304,22 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
     if (item === 'mission') {
       return (
         <ScrollView {...pageProps}>
-          <ParisGridMap cells={grid} squareCount={HISTORIC_GRID_COUNT} height={gridHeight} />
-
+          <Heading kicker="Comment ça marche" title="Trois gestes, c’est tout." />
           <View style={styles.steps}>
             <MissionStep
-              icon="map.fill"
+              illustration={Illustrations.onboardingFind}
               title="Trouvez une photo"
-              copy="Choisissez un carré près de vous."
+              copy="Une photo de 1970, près de chez vous."
             />
             <MissionStep
-              icon="camera.viewfinder"
+              illustration={Illustrations.onboardingFrame}
               title="Cadrez comme en 1970"
-              copy="Le viseur superpose l’archive."
+              copy="Le viseur superpose l’ancienne photo."
             />
             <MissionStep
-              icon="paperplane.fill"
-              title="Partagez votre reprise"
-              copy="Déposez-la à l’Observatoire."
+              illustration={Illustrations.onboardingShare}
+              title="Partagez-la"
+              copy="Avec vos proches, ou à l’Observatoire."
             />
           </View>
         </ScrollView>
@@ -528,14 +524,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.three,
   },
-  stepIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Palette.goSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  stepIllustration: { width: 96, height: 96 },
   stepCopy: {
     flex: 1,
     gap: Spacing.half,

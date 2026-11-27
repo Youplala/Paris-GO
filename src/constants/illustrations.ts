@@ -10,4 +10,7 @@ export const Illustrations = {
   badgeTen: require('../../assets/illustrations/badge-10-reprises.png'),
   badgeSector: require('../../assets/illustrations/badge-secteur-complete.png'),
   cameraPermission: require('../../assets/illustrations/autorisation-camera.png'),
+  onboardingFind: require('../../assets/illustrations/onboarding-trouver.png'),
+  onboardingFrame: require('../../assets/illustrations/onboarding-cadrer.png'),
+  onboardingShare: require('../../assets/illustrations/onboarding-partager.png'),
 } as const;
