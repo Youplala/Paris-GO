@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/ui/symbol';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ArchiveContactSheet } from '@/components/archive-contact-sheet';

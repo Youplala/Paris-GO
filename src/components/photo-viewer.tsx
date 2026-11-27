@@ -1,6 +1,6 @@
 import { Image, type ImageSource } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/ui/symbol';
 import { useRef, useState } from 'react';
 import {
   Modal,

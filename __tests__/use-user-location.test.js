@@ -6,9 +6,10 @@ import * as Location from 'expo-location';
 import { useUserLocation } from '@/hooks/use-user-location';
 
 jest.mock('expo-location', () => ({
-  Accuracy: { Balanced: 3 },
+  Accuracy: { Balanced: 3, High: 4 },
   requestForegroundPermissionsAsync: jest.fn(),
   hasServicesEnabledAsync: jest.fn(),
+  getLastKnownPositionAsync: jest.fn(),
   getCurrentPositionAsync: jest.fn(),
 }));
 jest.mock('@/services/location-preference', () => ({ shouldAutoLocate: async () => false }));
@@ -25,8 +26,27 @@ beforeEach(async () => {
   jest.useFakeTimers();
   Location.requestForegroundPermissionsAsync.mockResolvedValue({ granted: true });
   Location.hasServicesEnabledAsync.mockResolvedValue(true);
+  Location.getLastKnownPositionAsync.mockResolvedValue(null);
   Location.getCurrentPositionAsync.mockImplementation(() => new Promise(() => {}));
   await act(async () => { renderer = create(<Probe />); });
+});
+
+it('affiche aussitôt une position récente, sans attendre le GPS', async () => {
+  Location.getLastKnownPositionAsync.mockResolvedValueOnce({ coords: { latitude: 48.86, longitude: 2.35 } });
+  await act(async () => { await current.locate(); });
+  expect(Location.getLastKnownPositionAsync).toHaveBeenCalledWith({ maxAge: 120000, requiredAccuracy: 200 });
+  expect(Location.getCurrentPositionAsync).not.toHaveBeenCalled();
+  expect(current.coordinate).toEqual({ latitude: 48.86, longitude: 2.35 });
+  expect(current.isPrecise).toBe(true);
+  expect(current.loading).toBe(false);
+});
+
+it('interroge le GPS quand la dernière position connue est illisible', async () => {
+  Location.getLastKnownPositionAsync.mockRejectedValueOnce(new Error('unavailable'));
+  Location.getCurrentPositionAsync.mockResolvedValueOnce({ coords: { latitude: 48.85, longitude: 2.34 } });
+  await act(async () => { await current.locate(); });
+  expect(current.coordinate).toEqual({ latitude: 48.85, longitude: 2.34 });
+  expect(current.loading).toBe(false);
 });
 afterEach(async () => {
   await act(async () => { renderer.unmount(); });

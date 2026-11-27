@@ -1,5 +1,5 @@
 import type { ImageSource } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/ui/symbol';
 import { useEffect, useRef } from 'react';
 import {
   Pressable,

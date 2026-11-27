@@ -86,10 +86,23 @@ export const Spacing = {
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 
 /**
- * Espace à réserver au bas des vues défilantes. La barre d'onglets flotte au-dessus du contenu :
- * sans cette marge, le dernier bloc de chaque écran passe dessous et devient inatteignable.
+ * Barre d'onglets flottante d'Android : une pilule posée au-dessus de la barre système, comme la
+ * barre Liquid Glass d'iOS flotte au-dessus du contenu.
  */
-export const TabBarClearance = Platform.select({ ios: 132, android: 124 }) ?? 128;
+export const FloatingTabBar = { height: 64, gap: Spacing.two } as const;
+
+/** Hauteur, depuis le bas de l'écran, que recouvre la barre d'onglets flottante d'Android. */
+export function floatingTabBarTop(bottomInset: number) {
+  return Math.max(bottomInset, Spacing.two) + FloatingTabBar.gap + FloatingTabBar.height;
+}
+
+/**
+ * Espace à réserver au bas des vues défilantes. La barre d'onglets flotte au-dessus du contenu
+ * (Liquid Glass sous iOS, pilule sous Android) : sans cette marge, le dernier bloc de chaque écran
+ * passe dessous et devient inatteignable. Sous Android, elle couvre la pilule et jusqu'à 48 pt de
+ * barre système à trois boutons.
+ */
+export const TabBarClearance = 132;
 export const MaxContentWidth = 800;
 
 export const Radius = {

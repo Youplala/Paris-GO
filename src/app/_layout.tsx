@@ -2,6 +2,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { Stack } from 'expo-router/stack';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { LogBox, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -69,6 +70,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.background }}>
       <ThemeProvider value={navigationTheme}>
         <View style={{ flex: 1 }}>
+          {/* Style de base de la barre d'état : sans lui, Android la repassait en clair sur le fond
+              clair de l'app une fois l'onboarding quitté. Visionneuse et viseur la passent en clair. */}
+          <StatusBar style={isDark ? 'light' : 'dark'} />
           <StationsProvider>
             {onboardingComplete === null ? (
               <View style={{ flex: 1, backgroundColor: theme.background }} />

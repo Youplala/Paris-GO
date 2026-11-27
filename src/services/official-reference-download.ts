@@ -1,3 +1,4 @@
+import { bhvpHeadersForUri } from '@/services/bhvp-images';
 import {
   assertOfficialImageContent,
   assertOfficialImageSize,
@@ -17,7 +18,9 @@ export async function fetchOfficialReferenceUpload(
 ): Promise<OfficialUploadFile> {
   let response: Response;
   try {
-    response = await fetch(uri);
+    // Une référence de 1970 vient de la BHVP, qui refuse l'agent HTTP par défaut d'Android.
+    const headers = bhvpHeadersForUri(uri);
+    response = headers ? await fetch(uri, { headers }) : await fetch(uri);
   } catch {
     throw new OfficialImagePreparationError('download-failed');
   }

@@ -16,7 +16,7 @@ import {
   frame,
   tint,
 } from '@expo/ui/swift-ui/modifiers';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/ui/symbol';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { SFSymbol } from 'sf-symbols-typescript';
 

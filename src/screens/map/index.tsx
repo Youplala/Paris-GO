@@ -1,13 +1,14 @@
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/ui/symbol';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   Keyboard,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -23,7 +24,16 @@ import { ArchiveContactSheet } from '@/components/archive-contact-sheet';
 import { GlassSurface } from '@/components/glass-surface';
 import { MapPreviewSheet } from '@/components/map-preview-sheet';
 import { ParisGoBadge } from '@/components/paris-go-badge';
-import { Fonts, HitSize, Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import {
+  Fonts,
+  HitSize,
+  Palette,
+  Radius,
+  Shadow,
+  Spacing,
+  Typography,
+  floatingTabBarTop,
+} from '@/constants/theme';
 import { PARIS_CENTER } from '@/data/archive';
 
 import { useBhvpImages } from '@/hooks/use-bhvp-images';
@@ -53,7 +63,11 @@ const POINT_ZOOM_THRESHOLD = 0.047;
 // représentations se superposent avec une opacité proportionnelle à l'avancement du zoom.
 const GRID_FADE_BUFFER = 0.014;
 const FOCUSED_CELL_ZOOM_PADDING = 2.6;
+// Sous iOS, la barre d'onglets Liquid Glass flotte sur la carte : fiche et boutons se posent 110 pt
+// au-dessus du bas de l'écran. Sous Android, la pilule flottante varie avec la barre système : le
+// décalage se calcule depuis sa hauteur réelle (voir `bottomOverlayOffset`).
 const MAP_BOTTOM_OVERLAY_OFFSET = 110;
+const MAP_CONTROLS_GAP = 16;
 // Barre de recherche + rangée de filtres. Le pourcentage global vit désormais dans la barre de
 // recherche : il n'ajoute plus de hauteur à réserver au-dessus de la carte.
 const MAP_TOP_CONTROLS_HEIGHT = 50 + 36 + Spacing.two;
@@ -306,6 +320,13 @@ export function MapScreen() {
     useLocalSearchParams<{ station?: string; focus?: string }>();
   const insets = useSafeAreaInsets();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const androidTabBarTop = Platform.OS === 'android' ? floatingTabBarTop(insets.bottom) : 0;
+  const bottomOverlayOffset =
+    Platform.OS === 'android' ? androidTabBarTop + Spacing.twoHalf : MAP_BOTTOM_OVERLAY_OFFSET;
+  const controlsOffset = bottomOverlayOffset + MAP_CONTROLS_GAP;
+  // Google Maps impose que son logo reste visible : sous Android, la carte se réserve le bas de
+  // l'écran couvert par la pilule, et la région se centre dans la partie restante.
+  const mapViewportHeight = screenHeight - androidTabBarTop;
   const mapRef = useRef<MapView>(null);
   const carouselRef = useRef<FlatList<StationSummary>>(null);
   const handledFocusRequest = useRef<string | undefined>(undefined);
@@ -522,11 +543,11 @@ export function MapScreen() {
     const latitudeDelta = mapTarget.latitudeDelta ?? 0.018;
     const longitudeDelta = mapTarget.longitudeDelta ?? 0.014;
     const visibleMapTop = topOffset + MAP_TOP_CONTROLS_HEIGHT;
-    const visibleMapBottom = screenHeight - MAP_BOTTOM_OVERLAY_OFFSET - previewCardHeight;
+    const visibleMapBottom = screenHeight - bottomOverlayOffset - previewCardHeight;
     const visibleMapCenter = (visibleMapTop + visibleMapBottom) / 2;
     const verticalOffsetRatio =
       mapTarget.avoidBottomOverlay && visibleMapBottom > visibleMapTop
-        ? (screenHeight / 2 - visibleMapCenter) / screenHeight
+        ? (mapViewportHeight / 2 - visibleMapCenter) / mapViewportHeight
         : 0;
 
     // Conserver la cible dans l'état : une commande impérative peut être perdue pendant
@@ -537,7 +558,7 @@ export function MapScreen() {
       latitudeDelta,
       longitudeDelta,
     });
-  }, [previewCardHeight, screenHeight, topOffset]);
+  }, [bottomOverlayOffset, mapViewportHeight, previewCardHeight, screenHeight, topOffset]);
 
   useEffect(() => {
     const selectedIndex = visibleStations.findIndex(
@@ -740,6 +761,7 @@ export function MapScreen() {
         ref={mapRef}
         provider={PROVIDER_DEFAULT}
         style={StyleSheet.absoluteFill}
+        mapPadding={androidTabBarTop ? { top: 0, right: 0, bottom: androidTabBarTop, left: 0 } : undefined}
         region={region}
         mapType="mutedStandard"
         showsCompass={false}
@@ -1098,13 +1120,13 @@ export function MapScreen() {
           {
             bottom:
               previewCollapsed || searchFocused
-                ? 126
+                ? controlsOffset
                 : isExploringArchiveCell ||
               (showIndividualPoints && hasSelectedExactStation)
-                ? previewCardHeight + 126
+                ? previewCardHeight + controlsOffset
                 : focusedCell || hasNoFilteredSearchResults
-                ? 276
-                : 126,
+                ? controlsOffset + 150
+                : controlsOffset,
           },
         ]}>
         <View style={styles.mapControlGroup}>
@@ -1143,7 +1165,7 @@ export function MapScreen() {
       </View>
 
       {!searchFocused && hasPreview ? (
-        <View style={styles.bottomOverlay} pointerEvents="box-none">
+        <View style={[styles.bottomOverlay, { bottom: bottomOverlayOffset }]} pointerEvents="box-none">
           <MapPreviewSheet collapsed={previewCollapsed} onCollapsedChange={setPreviewCollapsed}>
           {isExploringArchiveCell && focusedCell ? (
             // Un seul panneau : le lieu et les compteurs ne sont dits qu'ici, dans l'en-tête ;
@@ -1697,7 +1719,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 110,
   },
   archiveNavigator: {
     marginHorizontal: Spacing.three,

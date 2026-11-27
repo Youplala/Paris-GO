@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/ui/symbol';
 import { useMemo } from 'react';
 import {
   Alert,
@@ -102,9 +103,13 @@ export function HomeScreen() {
       return;
     }
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    // Autorisée mais introuvable (intérieur, GPS lent) : réclamer l'autorisation induisait en erreur.
+    const permission = await Location.getForegroundPermissionsAsync().catch(() => undefined);
     Alert.alert(
       'Position non disponible',
-      'Autorisez la localisation pour voir les photos de 1970 prises autour de vous.',
+      permission?.granted
+        ? 'Votre téléphone n’a pas encore trouvé votre position. Réessayez dans un instant, de préférence à l’extérieur.'
+        : 'Autorisez la localisation pour voir les photos de 1970 prises autour de vous.',
     );
   };
 

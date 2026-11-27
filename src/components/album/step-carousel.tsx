@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { Image, type ImageSource } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/ui/symbol';
 import { forwardRef, useCallback, useImperativeHandle, useRef } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View, type FlatList } from 'react-native';
 import Animated, {

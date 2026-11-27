@@ -1,8 +1,29 @@
 import type { ImageSource } from 'expo-image';
+import { Platform } from 'react-native';
 
 import { archivePhotoKey } from '@/utils/archive-recaptures';
 
 const BHVP_ORIGIN = 'https://bibliotheques-specialisees.paris.fr';
+
+/**
+ * Le pare-feu de la BHVP répond 403 à l'agent HTTP par défaut d'Android (`okhttp/…`) — page de la
+ * visionneuse comme images —, alors qu'il accepte celui d'iOS : sans en-tête explicite, aucune
+ * photo de 1970 ne s'affichait sous Android. iOS garde son agent système.
+ */
+function bhvpRequestHeaders(): Record<string, string> | undefined {
+  return Platform.OS === 'android'
+    ? { 'User-Agent': 'ParisGO/1.0 (Android; +https://youplala.github.io/reprise/)' }
+    : undefined;
+}
+
+/** En-têtes à joindre au téléchargement d'une image : seules celles de la BHVP en demandent. */
+export function bhvpHeadersForUri(uri: string): Record<string, string> | undefined {
+  try {
+    return new URL(uri).origin === BHVP_ORIGIN ? bhvpRequestHeaders() : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 type PictureRecord = {
   hiResimage?: string;
@@ -75,8 +96,9 @@ async function picturesForRequest(
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
+  const headers = bhvpRequestHeaders();
   const request = fetch(endpoint, {
-    headers: { Accept: 'text/html,application/xhtml+xml' },
+    headers: { Accept: 'text/html,application/xhtml+xml', ...headers },
     signal: controller.signal,
   })
     .then(async (response) => {
@@ -91,7 +113,9 @@ async function picturesForRequest(
         // l'original haute définition sur le terrain.
         .map((record) => absoluteImageUrl(record.image ?? record.hiResimage ?? record.thumb))
         // Ne pas filtrer les trous : v0003 doit rester la troisième vue du dossier.
-        .map((uri) => uri ? { uri } : undefined);
+        .map((uri) =>
+          uri ? { uri, ...(headers && { headers }) } : undefined,
+        );
     })
     .catch(() => {
       // Une coupure réseau ne doit pas empoisonner le cache jusqu'au prochain redémarrage.

@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/ui/symbol';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AdaptivePhoto } from '@/components/adaptive-photo';

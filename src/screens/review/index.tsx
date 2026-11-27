@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import type { ImageSource } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/ui/symbol';
 import { useEffect, useState } from 'react';
 import {
   Pressable,

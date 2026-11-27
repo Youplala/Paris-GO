@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { Image, type ImageSource } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/ui/symbol';
 import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
