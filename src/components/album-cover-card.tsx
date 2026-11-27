@@ -39,7 +39,7 @@ export function AlbumCoverCard({ album, title, onPress, variant = 'full', width 
   const compact = variant === 'compact';
   const height = compact ? 196 : 248;
   const chips = [
-    `${stats.count} ${stats.count > 1 ? 'reprises' : 'reprise'}`,
+    `${stats.count} ${stats.count > 1 ? 'photos' : 'photo'}`,
     stats.distance,
     compact ? undefined : summarizePlaces(places),
   ].filter(Boolean) as string[];

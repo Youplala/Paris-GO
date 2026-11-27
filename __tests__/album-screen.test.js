@@ -77,7 +77,7 @@ async function render() {
 it('ouvre la balade sur la carte : titre, chiffres, tracé, repères et une carte par reprise', async () => {
   await render();
   expect(texts()).toEqual(expect.arrayContaining([
-    'Mardi 14 juillet 2026', 'Balade du 14 juillet', '2 reprises · 1,0 km · 56 ans d’écart',
+    'Mardi 14 juillet 2026', 'Balade du 14 juillet', '2 photos · 1,0 km · 56 ans d’écart',
     'Photo 2', 'Secteur 995 · 11:00', 'Secteur 995 · 12:30', '1/2',
   ]));
   // La carte se cadre sur toute la balade, puis le trait de la marche se dessine.

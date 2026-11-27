@@ -48,7 +48,7 @@ it('ouvre le carnet sur les balades, titres choisis compris, et bascule vers les
   await act(async () => {});
   expect(texts()).toEqual(expect.arrayContaining([
     'Carnet', '2 balades · 3 photos', 'Balades · 2', 'Photos · 3',
-    'Autour du Champ-de-Mars', 'Balade du 21 juin 2025', '2 reprises', 'Secteur 995',
+    'Autour du Champ-de-Mars', 'Balade du 21 juin 2025', '2 photos', 'Secteur 995',
     'MES BADGES', '1/3', 'Première reprise', '3/10', 'Secteur complété',
   ]));
 

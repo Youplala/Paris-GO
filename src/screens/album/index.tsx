@@ -248,7 +248,7 @@ export function AlbumScreen() {
       <SafeAreaView style={styles.center}>
         <SymbolView name="book.closed" size={30} tintColor={Palette.brass} />
         <Text style={styles.emptyTitle}>Balade introuvable</Text>
-        <Text style={styles.emptyCopy}>Ses reprises ont peut-être été supprimées du carnet.</Text>
+        <Text style={styles.emptyCopy}>Ses photos ont peut-être été supprimées du carnet.</Text>
         <Pressable onPress={() => router.back()} style={styles.emptyButton}>
           <Text style={styles.emptyButtonText}>Revenir au carnet</Text>
         </Pressable>
@@ -257,7 +257,7 @@ export function AlbumScreen() {
   }
 
   const summary = [
-    `${stats.count} ${stats.count > 1 ? 'reprises' : 'reprise'}`,
+    `${stats.count} ${stats.count > 1 ? 'photos' : 'photo'}`,
     stats.distance,
     yearsApart ? `${yearsApart} ans d’écart` : undefined,
   ].filter(Boolean).join(' · ');

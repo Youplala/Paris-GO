@@ -87,6 +87,8 @@ const styles = StyleSheet.create({
   // Le contrat de toutes les actions : 52 pt de haut, texte courant en gras.
   label: {
     ...Typography.body,
+    flexShrink: 1,
+    textAlign: 'center',
     fontFamily: Fonts.sans,
     fontWeight: '700',
   },
