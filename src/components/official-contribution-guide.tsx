@@ -1,11 +1,16 @@
-import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/primary-button';
 import { Fonts, Palette, Radius, Spacing, Typography } from '@/constants/theme';
 import { OFFICIAL_CONTRIBUTION_GUIDE } from '@/services/official-contribution-guide';
 
-/** Un seul écran avant le formulaire officiel : trois lignes, un bouton. */
+/**
+ * Un seul écran avant le formulaire officiel : trois lignes, un bouton. C'est un calque dans
+ * l'écran, pas une `Modal` : une Modal iOS ne s'ouvre pas de façon fiable par-dessus un écran
+ * déjà présenté en plein écran (Expo Go la laissait invisible).
+ */
 export function OfficialContributionGuide({
   onComplete,
   visible,
@@ -13,16 +18,22 @@ export function OfficialContributionGuide({
   onComplete: () => void;
   visible: boolean;
 }) {
-  // Une Modal est une fenêtre à part : le SafeAreaView qu'on y place mesure des marges nulles.
-  // Les marges du provider racine, elles, restent justes ici.
   const insets = useSafeAreaInsets();
+  if (!visible) return null;
   const guide = OFFICIAL_CONTRIBUTION_GUIDE;
 
   return (
-    <Modal animationType="slide" onRequestClose={onComplete} statusBarTranslucent transparent visible={visible}>
-      <View style={[styles.backdrop, { paddingTop: insets.top + Spacing.three }]}>
+    <View style={[StyleSheet.absoluteFill, styles.layer]}>
+      <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={StyleSheet.absoluteFill}>
+        <Pressable accessibilityLabel="Fermer le guide" onPress={onComplete} style={styles.backdrop} />
+      </Animated.View>
+      <Animated.View
+        entering={SlideInDown.springify().damping(18)}
+        exiting={SlideOutDown.duration(200)}
+        style={[styles.sheetWrap, { paddingTop: insets.top + Spacing.three }]}>
         {/* Défile si le texte est agrandi : le bouton reste toujours atteignable. */}
         <ScrollView
+          accessibilityViewIsModal
           bounces={false}
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.three }]}
           showsVerticalScrollIndicator={false}
@@ -43,13 +54,15 @@ export function OfficialContributionGuide({
           </View>
           <PrimaryButton label={guide.action} onPress={onComplete} style={styles.action} />
         </ScrollView>
-      </View>
-    </Modal>
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(7, 24, 35, 0.58)', justifyContent: 'flex-end' },
+  layer: { zIndex: 10, justifyContent: 'flex-end' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(7, 24, 35, 0.58)' },
+  sheetWrap: { maxHeight: '100%', justifyContent: 'flex-end' },
   sheet: { flexGrow: 0, maxHeight: '100%', borderTopLeftRadius: Radius.large, borderTopRightRadius: Radius.large, backgroundColor: Palette.white },
   content: { paddingHorizontal: Spacing.three, paddingTop: Spacing.four },
   title: { ...Typography.display, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },

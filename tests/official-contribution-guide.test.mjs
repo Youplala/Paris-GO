@@ -44,6 +44,7 @@ test('ne promet jamais que Paris GO remplit ou envoie les données personnelles'
 
 test('reste entièrement accessible sur un petit écran ou avec une grande police', () => {
   assert.match(componentSource, /<ScrollView/);
+  assert.doesNotMatch(componentSource, /<Modal/);
   assert.match(componentSource, /maxHeight: '100%'/);
 });
 
