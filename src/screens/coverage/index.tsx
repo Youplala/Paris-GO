@@ -271,6 +271,13 @@ export function CoverageScreen() {
                   unit="vues refaites"
                   first={index === 0}
                   last={index === topPhotographers.length - 1}
+                  onPress={() => {
+                    void Haptics.selectionAsync();
+                    router.push({
+                      pathname: '/photographer/[name]',
+                      params: { name: photographer.name },
+                    });
+                  }}
                 />
               ))}
             </View>

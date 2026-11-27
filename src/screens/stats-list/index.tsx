@@ -100,6 +100,14 @@ export function StatsListScreen() {
             unit={copy.unit}
             first={index === 0}
             last={index === rows.length - 1}
+            onPress={
+              kind === 'photographes'
+                ? () => {
+                    void Haptics.selectionAsync();
+                    router.push({ pathname: '/photographer/[name]', params: { name: item.key } });
+                  }
+                : undefined
+            }
           />
         )}
       />
