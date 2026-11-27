@@ -40,14 +40,14 @@ export function computeBadges(captures: readonly SavedCapture[], frameCountFor: 
   return [
     {
       id: 'first',
-      title: 'Première reprise',
+      title: 'Première photo',
       unlocked: count >= 1,
       progress: count >= 1 ? undefined : '0/1',
       hint: 'Refaire une première photo de 1970.',
     },
     {
       id: 'ten',
-      title: '10 reprises',
+      title: '10 photos',
       unlocked: count >= 10,
       progress: count >= 10 ? undefined : `${count}/10`,
       hint: 'Refaire dix photos, où vous voulez.',

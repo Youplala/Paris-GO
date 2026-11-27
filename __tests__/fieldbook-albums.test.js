@@ -16,12 +16,15 @@ jest.mock('expo-router', () => {
     useFocusEffect: (callback) => useEffect(() => callback(), [callback]),
   };
 });
+let mockCaptures = [];
+const defaultCaptures = () => [
+  capture('a', '2026-07-14T09:00:00Z'),
+  capture('b', '2026-07-14T10:00:00Z'),
+  capture('c', '2025-06-21T10:00:00Z'),
+  capture('d', '2025-06-21T11:00:00Z'),
+];
 jest.mock('@/services/fieldbook', () => ({
-  getSavedCaptures: async () => [
-    capture('a', '2026-07-14T09:00:00Z'),
-    capture('b', '2026-07-14T10:00:00Z'),
-    capture('c', '2025-06-21T10:00:00Z'),
-  ],
+  getSavedCaptures: async () => mockCaptures,
   deleteCapture: jest.fn(),
 }));
 jest.mock('@/services/album-title-store', () => ({
@@ -30,6 +33,10 @@ jest.mock('@/services/album-title-store', () => ({
 const mockStations = {
   findDetail: () => ({ kind: 'archive-1970', year: 1970, archiveLinks: [], archiveMetadata: [], images: [] }),
   findStation: () => ({ frameCount: 32 }),
+  stations: [{
+    id: '14s', name: '839', kind: 'archive-1970', year: 1970, approximate: true, source: 'archive-local',
+    coordinate: { latitude: 48.8302, longitude: 2.3201 }, frameCount: 24, remainingCount: 12,
+  }],
 };
 jest.mock('@/providers/stations-provider', () => ({ useStations: () => mockStations }));
 jest.mock('react-native-safe-area-context', () => {
@@ -40,6 +47,7 @@ jest.mock('react-native-safe-area-context', () => {
 const { FieldbookScreen } = require('@/screens/fieldbook');
 
 let renderer;
+beforeEach(() => { mockCaptures = defaultCaptures(); });
 afterEach(async () => { if (renderer) await act(async () => renderer.unmount()); mockPush.mockClear(); });
 const texts = () => renderer.root.findAllByType(Text).map((node) => [].concat(node.props.children).join(''));
 
@@ -47,9 +55,9 @@ it('ouvre le carnet sur les balades, titres choisis compris, et bascule vers les
   await act(async () => { renderer = create(<FieldbookScreen />); });
   await act(async () => {});
   expect(texts()).toEqual(expect.arrayContaining([
-    'Carnet', '2 balades · 3 photos', 'Balades · 2', 'Photos · 3',
+    'Carnet', '2 balades · 4 photos', 'Balades · 2', 'Photos · 4',
     'Autour du Champ-de-Mars', 'Balade du 21 juin 2025', '2 photos', 'Secteur 995',
-    'MES BADGES', '1/3', 'Première reprise', '3/10', 'Secteur complété',
+    'MES BADGES', '1/3', 'Première photo', '4/10', 'Secteur complété',
   ]));
 
   const album = renderer.root.find((node) => typeof node.props.onPress === 'function'
@@ -59,7 +67,7 @@ it('ouvre le carnet sur les balades, titres choisis compris, et bascule vers les
 
   const photosTab = renderer.root.find((node) => node.props.accessibilityRole === 'tab'
     && typeof node.props.onPress === 'function'
-    && node.findAllByType(Text).some((text) => [].concat(text.props.children).join('') === 'Photos · 3'));
+    && node.findAllByType(Text).some((text) => [].concat(text.props.children).join('') === 'Photos · 4'));
   await act(async () => photosTab.props.onPress());
   expect(texts()).toEqual(expect.arrayContaining(['Secteur 995 · photo 1']));
   expect(texts()).not.toContain('À déposer');
@@ -72,7 +80,7 @@ it('ouvre les actions d’une reprise depuis la grille des photos', async () => 
   await act(async () => { renderer = create(<FieldbookScreen />); });
   await act(async () => {});
   const photosTab = renderer.root.find((node) => node.props.accessibilityRole === 'tab'
-    && node.findAllByType(Text).some((text) => [].concat(text.props.children).join('') === 'Photos · 3'));
+    && node.findAllByType(Text).some((text) => [].concat(text.props.children).join('') === 'Photos · 4'));
   await act(async () => photosTab.props.onPress());
   const tile = renderer.root.findAll((node) => typeof node.props.onPress === 'function'
     && (node.props.accessibilityHint ?? '') === 'Ouvre les actions de cette photo')[0];
@@ -86,4 +94,18 @@ it('ouvre les actions d’une reprise depuis la grille des photos', async () => 
     expect.any(Function),
   );
   expect(mockPush).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/capture-review' }));
+});
+
+it('une seule photo aujourd’hui : pas de balade, mais la 2ᵉ photo la plus proche à refaire', async () => {
+  mockCaptures = [{ ...capture('seule', new Date().toISOString()), coordinate: { latitude: 48.83, longitude: 2.32 } }];
+  await act(async () => { renderer = create(<FieldbookScreen />); });
+  await act(async () => {});
+  expect(texts()).toEqual(expect.arrayContaining([
+    'Balades · 0', 'Photos · 1', 'Votre balade du jour commence', '2ᵉ photo', 'Secteur 839, juste à côté', '12 photos à refaire',
+  ]));
+  expect(texts().some((text) => text.startsWith('Balade du'))).toBe(false);
+  const add = renderer.root.find((node) => typeof node.props.onPress === 'function'
+    && (node.props.accessibilityLabel ?? '').startsWith('Ajouter une deuxième photo'));
+  await act(async () => add.props.onPress());
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/station/[id]', params: { id: '14s' } });
 });

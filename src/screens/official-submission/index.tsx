@@ -81,28 +81,6 @@ import {
   type PreparedImages,
 } from '@/services/official-submission';
 
-// Libellés des champs que le pré-remplissage signale, dans l'ordre du formulaire.
-const PREFILLED_FIELD_LABELS: [string, string][] = [
-  ['address', 'Adresse'],
-  ['title', 'Titre'],
-  ['arrondissement', 'Arrondissement'],
-  ['city', 'Ville'],
-  ['captureDate', 'Date'],
-  ['device', 'Appareil'],
-  ['latitude', 'Position GPS'],
-  ['identity', 'Nom'],
-  ['email', 'E-mail'],
-  ['age', 'Âge'],
-  ['residenceCity', 'Commune'],
-  ['country', 'Pays'],
-];
-
-function labelsForPrefilledFields(fields: string[]) {
-  const present = new Set(fields);
-  if (present.has('longitude')) present.add('latitude');
-  return PREFILLED_FIELD_LABELS.filter(([key]) => present.has(key)).map(([, label]) => label);
-}
-
 type ThumbState = 'ready' | 'attached' | 'preparing' | 'error' | 'pending';
 
 function thumbState(
@@ -305,7 +283,7 @@ export function OfficialSubmissionScreen() {
   const [loading, setLoading] = useState(true);
   const [formError, setFormError] = useState<string>();
   const [webKey, setWebKey] = useState(0);
-  const [prefilledCount, setPrefilledCount] = useState(0);
+  const [, setPrefilledCount] = useState(0);
   const [validationMessage, setValidationMessage] = useState<string>();
   const [submissionStatus, setSubmissionStatus] = useState<'editing' | 'success'>('editing');
   const [preparingImages, setPreparingImages] = useState(false);
@@ -323,7 +301,6 @@ export function OfficialSubmissionScreen() {
   // Repliée d'emblée : le formulaire a besoin de la hauteur. Elle se déplie d'elle-même en cas
   // d'erreur (`officialChromeIsExpanded`).
   const [detailsExpanded, setDetailsExpanded] = useState(false);
-  const [prefilledFields, setPrefilledFields] = useState<string[]>([]);
   // Les champs déjà remplis sont repliés dans le formulaire : l'écran natif en montre la valeur.
   const [showAllFields, setShowAllFields] = useState(false);
   // Identité mémorisée sur l'appareil, à la demande de l'utilisateur uniquement.
@@ -446,7 +423,6 @@ export function OfficialSubmissionScreen() {
     }
     if (message.type === 'prefill') {
       setPrefilledCount(message.count);
-      setPrefilledFields(message.fields);
     }
     if (message.type === 'files-ready') {
       setAttachedFileCount(message.count);
@@ -602,7 +578,6 @@ export function OfficialSubmissionScreen() {
   const hasPreparationError = Boolean(
     preparedImages.current.error || preparedImages.reference.error,
   );
-  const prefilledLabels = labelsForPrefilledFields(prefilledFields);
   const chromeExpanded = officialChromeIsExpanded({
     detailsRequested: detailsExpanded,
     hasBlockingMessage: Boolean(imageError || validationMessage || hasPreparationError),
@@ -622,7 +597,7 @@ export function OfficialSubmissionScreen() {
             <Text style={styles.headerKicker}>
               {OFFICIAL_SUBMISSION_FIXTURE_ENABLED ? 'Test local' : 'Observatoire de Paris'}
             </Text>
-            <Text style={styles.headerTitle}>Déposer ma reprise</Text>
+            <Text style={styles.headerTitle}>Envoyer ma photo</Text>
           </View>
           <Pressable
             accessibilityLabel="Comprendre le dépôt"
@@ -657,22 +632,22 @@ export function OfficialSubmissionScreen() {
                 state={thumbState(preparedImages.current, attachedFileCount === 2, preparingImages)}
               />
             </View>
-            <View style={styles.summaryCopy}>
-              <Text style={styles.summaryTitle}>
-                {isSimulated
-                  ? 'Aperçu de démonstration'
-                  : attachedFileCount === 2
-                    ? 'Prêt, il ne reste que vous'
-                    : preparingImages
-                      ? 'Préparation des photos…'
-                      : `${preparedCount}/2 photo${preparedCount > 1 ? 's' : ''} préparée${preparedCount > 1 ? 's' : ''}`}
-              </Text>
-              <Text style={styles.summaryMeta} numberOfLines={1}>
-                {chromeExpanded
-                  ? `${attachedFileCount}/2 photos jointes · ${prefilledCount} champ${prefilledCount > 1 ? 's' : ''} rempli${prefilledCount > 1 ? 's' : ''}`
-                  : `${attachedFileCount}/2 photos · ${prefilledCount} champs · à vous : ${identity ? 'règlement et envoi' : 'identité et envoi'}`}
-              </Text>
-            </View>
+            {/* Une seule ligne : ce qui reste à faire. Les coches des miniatures disent déjà que
+                les photos sont jointes. */}
+            <Text style={styles.summaryText}>
+              {isSimulated ? (
+                'Aperçu de démonstration : rien ne sera envoyé.'
+              ) : attachedFileCount === 2 || !preparingImages ? (
+                <>
+                  <Text style={styles.todoStrong}>À vous : </Text>
+                  {identity
+                    ? 'cochez le règlement, puis Envoyer en bas.'
+                    : 'nom, e-mail, règlement, puis Envoyer en bas.'}
+                </>
+              ) : (
+                'Préparation des photos…'
+              )}
+            </Text>
             <SymbolView
               name={chromeExpanded ? 'chevron.up' : 'chevron.down'}
               size={13}
@@ -682,16 +657,6 @@ export function OfficialSubmissionScreen() {
 
           {chromeExpanded ? (
             <View style={styles.summaryBody}>
-              {prefilledLabels.length ? (
-                <View style={styles.chips}>
-                  {prefilledLabels.map((label) => (
-                    <View key={label} style={styles.chip}>
-                      <SymbolView name="checkmark" size={11} tintColor={Palette.lichen} />
-                      <Text style={styles.chipText}>{label}</Text>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
 
               {locating ? (
                 <Text style={styles.summaryMeta}>Recherche de votre position…</Text>
@@ -731,23 +696,11 @@ export function OfficialSubmissionScreen() {
                 <Text style={styles.identityAction}>{identity ? 'Modifier' : 'Ajouter'}</Text>
               </Pressable>
 
-              <View style={styles.todo}>
-                <SymbolView name="hand.tap.fill" size={15} tintColor={Palette.go} />
-                <Text style={styles.todoText}>
-                  <Text style={styles.todoStrong}>À vous : </Text>
-                  {identity
-                    ? 'vérifier vos informations, cocher le règlement, puis Envoyer.'
-                    : 'nom, e-mail, règlement, puis Envoyer, dans le formulaire ci-dessous.'}
-                </Text>
-              </View>
-              <View style={styles.todo}>
-                <SymbolView name="lock.fill" size={13} tintColor={Palette.lichen} />
-                <Text style={styles.trustText}>
-                  {OFFICIAL_SUBMISSION_FIXTURE_ENABLED
-                    ? 'Formulaire de test embarqué : aucune donnée ni photo ne quitte cet appareil.'
-                    : 'Les deux photos sont ajoutées automatiquement. Votre identité, le règlement et l’envoi final restent sous votre contrôle ; Paris GO ne reçoit rien.'}
-                </Text>
-              </View>
+              <Text style={styles.trustText}>
+                {OFFICIAL_SUBMISSION_FIXTURE_ENABLED
+                  ? 'Formulaire de test embarqué : aucune donnée ni photo ne quitte cet appareil.'
+                  : 'Les deux photos sont ajoutées automatiquement. Paris GO ne reçoit rien.'}
+              </Text>
 
               <View style={styles.summaryActions}>
                 <Pressable
@@ -846,7 +799,6 @@ export function OfficialSubmissionScreen() {
                 setFormError(undefined);
                 setValidationMessage(undefined);
                 setPrefilledCount(0);
-                setPrefilledFields([]);
                 setAttachedFileCount(0);
               }}
               onLoadEnd={(event) => {
@@ -979,7 +931,7 @@ const styles = StyleSheet.create({
   thumbBadgePending: { backgroundColor: 'rgba(8, 17, 22, 0.55)' },
   thumbSpinner: { transform: [{ scale: 0.6 }] },
   summaryCopy: { flex: 1, gap: 2 },
-  summaryTitle: { ...Typography.body, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
+  summaryText: { ...Typography.body, flex: 1, color: Palette.ink, fontFamily: Fonts.sans },
   summaryMeta: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   summaryBody: {
     paddingHorizontal: Spacing.twoHalf,
@@ -989,17 +941,6 @@ const styles = StyleSheet.create({
     borderTopColor: Palette.line,
     paddingTop: Spacing.twoHalf,
   },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one },
-  chip: {
-    minHeight: 28,
-    paddingHorizontal: Spacing.two,
-    borderRadius: Radius.pill,
-    backgroundColor: Palette.fog,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  chipText: { ...Typography.caption, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '600' },
   fileError: { ...Typography.caption, color: Palette.go, fontFamily: Fonts.sans, fontWeight: '600' },
   identityRow: {
     minHeight: 56,
@@ -1014,10 +955,8 @@ const styles = StyleSheet.create({
   identityTitle: { ...Typography.body, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '700' },
   identityMeta: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   identityAction: { ...Typography.caption, color: Palette.go, fontFamily: Fonts.sans, fontWeight: '700' },
-  todo: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
-  todoText: { ...Typography.caption, flex: 1, color: Palette.ink, fontFamily: Fonts.sans },
   todoStrong: { fontWeight: '700', color: Palette.go },
-  trustText: { ...Typography.caption, flex: 1, color: Palette.inkSoft, fontFamily: Fonts.sans },
+  trustText: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
   summaryActions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   summaryAction: {
     minHeight: HitSize,

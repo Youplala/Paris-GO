@@ -5,6 +5,8 @@ import {
   albumDayKey,
   albumPlaces,
   albumStats,
+  capturesTakenToday,
+  suggestNextPhoto,
   defaultAlbumTitle,
   findAlbum,
   formatAlbumDay,
@@ -37,12 +39,13 @@ test('une balade regroupe les reprises du même jour à Paris, la plus récente 
     capture('c', '2026-07-14T21:30:00Z'),
     // 00 h 30 à Paris le 22 juin, encore le 21 en UTC.
     capture('d', '2026-06-21T22:30:00Z'),
+    capture('e', '2026-06-22T08:00:00Z'),
   ]);
   assert.deepEqual(albums.map((album) => album.id), ['2026-07-14', '2026-06-22']);
   assert.deepEqual(albums[0].captures.map((item) => item.id), ['a', 'b', 'c']);
   assert.equal(albums[0].startedAt, '2026-07-14T09:00:00Z');
   assert.equal(albums[0].endedAt, '2026-07-14T21:30:00Z');
-  assert.equal(findAlbum([capture('a', '2026-07-14T09:00:00Z')], '2026-07-14')?.captures.length, 1);
+  assert.equal(findAlbum([capture('a', '2026-07-14T09:00:00Z'), capture('b', '2026-07-14T10:00:00Z')], '2026-07-14')?.captures.length, 2);
   assert.equal(findAlbum([], '2026-07-14'), undefined);
 });
 
@@ -116,4 +119,32 @@ test('les titres choisis sont mémorisés, nettoyés, et un titre vide rend le t
   assert.deepEqual(await store.list(), { '2026-01-03': 'Ok' });
   memory.set(ALBUM_TITLES_KEY, 'cassé');
   assert.deepEqual(await store.list(), {});
+});
+
+test('une seule photo dans la journée ne fait pas encore une balade', () => {
+  const single = [capture('seule', '2026-11-27T12:00:00Z')];
+  assert.deepEqual(groupCapturesIntoAlbums(single), []);
+  assert.equal(findAlbum(single, '2026-11-27'), undefined);
+  assert.equal(capturesTakenToday(single, new Date('2026-11-27T18:00:00Z')), 1);
+  assert.equal(capturesTakenToday(single, new Date('2026-11-28T09:00:00Z')), 0);
+  assert.equal(capturesTakenToday([capture('demo', '2026-11-27T12:00:00Z', { simulated: true })], new Date('2026-11-27T18:00:00Z')), 0);
+});
+
+test('la photo suivante est le secteur de 1970 le plus proche où il reste une vue à refaire', () => {
+  const sector = (id, latitude, extra = {}) => ({
+    id, name: id, kind: 'archive-1970', year: 1970, approximate: true, source: 'archive-local',
+    coordinate: { latitude, longitude: 2.35 }, frameCount: 20, remainingCount: 5, ...extra,
+  });
+  const from = { latitude: 48.85, longitude: 2.35 };
+  const stations = [
+    sector('fait', 48.8501, { remainingCount: 0 }),
+    { ...sector('2022', 48.8502), kind: 'station-2022' },
+    sector('loin', 48.86),
+    sector('pres', 48.852),
+  ];
+  const next = suggestNextPhoto(stations, from);
+  assert.equal(next?.station.id, 'pres');
+  assert.equal(next?.remaining, 5);
+  assert.ok(next.distanceMeters > 200 && next.distanceMeters < 250);
+  assert.equal(suggestNextPhoto(stations, undefined), undefined);
 });

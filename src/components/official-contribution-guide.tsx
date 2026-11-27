@@ -1,11 +1,16 @@
-import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Fonts, Palette, Radius, Shadow, Spacing } from '@/constants/theme';
+import { PrimaryButton } from '@/components/primary-button';
+import { Fonts, Palette, Radius, Spacing, Typography } from '@/constants/theme';
 import { OFFICIAL_CONTRIBUTION_GUIDE } from '@/services/official-contribution-guide';
 
+/**
+ * Un seul écran avant le formulaire officiel : trois lignes, un bouton. C'est un calque dans
+ * l'écran, pas une `Modal` : une Modal iOS ne s'ouvre pas de façon fiable par-dessus un écran
+ * déjà présenté en plein écran (Expo Go la laissait invisible).
+ */
 export function OfficialContributionGuide({
   onComplete,
   visible,
@@ -13,207 +18,60 @@ export function OfficialContributionGuide({
   onComplete: () => void;
   visible: boolean;
 }) {
-  // Une Modal est une fenêtre à part : le SafeAreaView qu'on y place mesure des marges nulles et
-  // le guide passait sous l'horloge, « Passer » se retrouvant sous les icônes d'état, intouchable.
-  // Les marges du provider racine, elles, restent justes ici.
   const insets = useSafeAreaInsets();
-  const [index, setIndex] = useState(0);
-  const slide = OFFICIAL_CONTRIBUTION_GUIDE[index];
-  const isLast = index === OFFICIAL_CONTRIBUTION_GUIDE.length - 1;
-
-  const closeGuide = () => {
-    setIndex(0);
-    onComplete();
-  };
-
-  const continueGuide = () => {
-    if (isLast) {
-      closeGuide();
-      return;
-    }
-    setIndex((value) => Math.min(value + 1, OFFICIAL_CONTRIBUTION_GUIDE.length - 1));
-  };
+  if (!visible) return null;
+  const guide = OFFICIAL_CONTRIBUTION_GUIDE;
 
   return (
-    <Modal
-      animationType="fade"
-      onRequestClose={closeGuide}
-      statusBarTranslucent
-      transparent
-      visible={visible}>
-      <View style={styles.backdrop}>
-        <View
-          style={[styles.safeArea, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-          <ScrollView
-            contentContainerStyle={styles.sheetContent}
-            showsVerticalScrollIndicator={false}
-            style={styles.sheet}>
-            <View style={styles.topRow}>
-              <Text style={styles.step}>{slide.eyebrow}</Text>
-              <Pressable
-                accessibilityLabel="Passer le guide"
-                accessibilityRole="button"
-                onPress={closeGuide}
-                style={({ pressed }) => [styles.skipButton, pressed && styles.pressed]}>
-                <Text style={styles.skipLabel}>Passer</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.iconShell}>
-              <SymbolView name={slide.icon} size={34} tintColor={Palette.white} />
-            </View>
-            <Text style={styles.title}>{slide.title}</Text>
-            <Text style={styles.body}>{slide.body}</Text>
-
-            <View style={styles.points}>
-              {slide.points.map((point) => (
-                <View key={point} style={styles.pointRow}>
-                  <View style={styles.checkShell}>
-                    <SymbolView name="checkmark" size={10} tintColor={Palette.white} />
-                  </View>
-                  <Text style={styles.pointText}>{point}</Text>
+    <View style={[StyleSheet.absoluteFill, styles.layer]}>
+      <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={StyleSheet.absoluteFill}>
+        <Pressable accessibilityLabel="Fermer le guide" onPress={onComplete} style={styles.backdrop} />
+      </Animated.View>
+      <Animated.View
+        entering={SlideInDown.springify().damping(18)}
+        exiting={SlideOutDown.duration(200)}
+        style={[styles.sheetWrap, { paddingTop: insets.top + Spacing.three }]}>
+        {/* Défile si le texte est agrandi : le bouton reste toujours atteignable. */}
+        <ScrollView
+          accessibilityViewIsModal
+          bounces={false}
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.three }]}
+          showsVerticalScrollIndicator={false}
+          style={styles.sheet}>
+          <Text accessibilityRole="header" style={styles.title}>{guide.title}</Text>
+          <View style={styles.steps}>
+            {guide.steps.map((step, index) => (
+              <View key={step.text} style={styles.step}>
+                <View style={styles.number}>
+                  <Text style={styles.numberText}>{index + 1}</Text>
                 </View>
-              ))}
-            </View>
-
-            <View style={styles.footer}>
-              <View accessibilityLabel={`Étape ${index + 1} sur 3`} style={styles.dots}>
-                {OFFICIAL_CONTRIBUTION_GUIDE.map((item, dotIndex) => (
-                  <View
-                    key={item.eyebrow}
-                    style={[styles.dot, dotIndex === index && styles.dotActive]}
-                  />
-                ))}
+                <View style={styles.stepCopy}>
+                  <Text style={styles.stepText}>{step.text}</Text>
+                  {'note' in step ? <Text style={styles.stepNote}>{step.note}</Text> : null}
+                </View>
               </View>
-              <Pressable
-                accessibilityRole="button"
-                onPress={continueGuide}
-                style={({ pressed }) => [styles.continueButton, pressed && styles.pressed]}>
-                <Text style={styles.continueLabel}>
-                  {isLast ? 'Voir le formulaire' : 'Suivant'}
-                </Text>
-                <SymbolView name="arrow.right" size={14} tintColor={Palette.white} />
-              </Pressable>
-            </View>
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
+            ))}
+          </View>
+          <PrimaryButton label={guide.action} onPress={onComplete} style={styles.action} />
+        </ScrollView>
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(7, 24, 35, 0.58)',
-    justifyContent: 'flex-end',
-  },
-  safeArea: { flex: 1, justifyContent: 'flex-end' },
-  sheet: {
-    maxHeight: '100%',
-    marginHorizontal: Spacing.two,
-    borderRadius: Radius.large,
-    backgroundColor: Palette.white,
-    ...Shadow.card,
-  },
-  sheetContent: { padding: Spacing.four },
-  topRow: {
-    minHeight: 32,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  step: {
-    color: Palette.copper,
-    fontFamily: Fonts.display,
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-  },
-  skipButton: {
-    minHeight: 32,
-    paddingHorizontal: Spacing.two,
-    justifyContent: 'center',
-  },
-  skipLabel: {
-    color: Palette.inkSoft,
-    fontFamily: Fonts.sans,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  iconShell: {
-    width: 66,
-    height: 66,
-    marginTop: Spacing.three,
-    borderRadius: 24,
-    backgroundColor: Palette.parisBlue,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    marginTop: Spacing.three,
-    color: Palette.ink,
-    fontFamily: Fonts.display,
-    fontSize: 29,
-    lineHeight: 32,
-    fontWeight: '900',
-  },
-  body: {
-    marginTop: Spacing.two,
-    color: Palette.inkSoft,
-    fontFamily: Fonts.sans,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  points: { marginTop: Spacing.three, gap: Spacing.twoHalf },
-  pointRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
-  checkShell: {
-    width: 20,
-    height: 20,
-    marginTop: 1,
-    borderRadius: 10,
-    backgroundColor: Palette.lichen,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pointText: {
-    flex: 1,
-    color: Palette.ink,
-    fontFamily: Fonts.sans,
-    fontSize: 13,
-    lineHeight: 19,
-    fontWeight: '600',
-  },
-  footer: {
-    marginTop: Spacing.four,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.three,
-  },
-  dots: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: Palette.line,
-  },
-  dotActive: { width: 22, backgroundColor: Palette.parisBlue },
-  continueButton: {
-    minHeight: 48,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Radius.pill,
-    backgroundColor: Palette.parisBlue,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
-  },
-  continueLabel: {
-    color: Palette.white,
-    fontFamily: Fonts.sans,
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  pressed: { opacity: 0.76, transform: [{ scale: 0.98 }] },
+  layer: { zIndex: 10, justifyContent: 'flex-end' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(7, 24, 35, 0.58)' },
+  sheetWrap: { maxHeight: '100%', justifyContent: 'flex-end' },
+  sheet: { flexGrow: 0, maxHeight: '100%', borderTopLeftRadius: Radius.large, borderTopRightRadius: Radius.large, backgroundColor: Palette.white },
+  content: { paddingHorizontal: Spacing.three, paddingTop: Spacing.four },
+  title: { ...Typography.display, color: Palette.ink, fontFamily: Fonts.display, fontWeight: '800' },
+  steps: { marginTop: Spacing.three, gap: Spacing.three },
+  step: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.twoHalf },
+  number: { width: 32, height: 32, borderRadius: 16, backgroundColor: Palette.parisBlue, alignItems: 'center', justifyContent: 'center' },
+  numberText: { ...Typography.body, color: Palette.white, fontFamily: Fonts.display, fontWeight: '800' },
+  stepCopy: { flex: 1, gap: Spacing.one },
+  stepText: { ...Typography.body, color: Palette.ink, fontFamily: Fonts.sans, fontWeight: '600' },
+  stepNote: { ...Typography.caption, color: Palette.inkSoft, fontFamily: Fonts.sans },
+  action: { marginTop: Spacing.four },
 });
