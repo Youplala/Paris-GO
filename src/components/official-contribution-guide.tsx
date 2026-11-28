@@ -1,5 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/primary-button';
@@ -28,8 +28,9 @@ export function OfficialContributionGuide({
         <Pressable accessibilityLabel="Fermer le guide" onPress={onComplete} style={styles.backdrop} />
       </Animated.View>
       <Animated.View
-        entering={SlideInDown.springify().damping(18)}
-        exiting={SlideOutDown.duration(200)}
+        // Glissement net et amorti, sans ressort : la feuille arrive et ne rebondit pas.
+        entering={SlideInDown.duration(260).easing(Easing.out(Easing.cubic))}
+        exiting={SlideOutDown.duration(180).easing(Easing.in(Easing.cubic))}
         style={[styles.sheetWrap, { paddingTop: insets.top + Spacing.three }]}>
         {/* Défile si le texte est agrandi : le bouton reste toujours atteignable. */}
         <ScrollView
