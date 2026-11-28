@@ -92,8 +92,8 @@ télécharge au lancement, avec repli sur la copie embarquée : elle reste utili
 et n'a pas besoin d'une mise à jour App Store pour rafraîchir ses chiffres.
 
 Trois raisons à ce choix. L'API amont est servie sans CDN ni compression et en
-`cache-control: private`, une ouverture coûtait 4,5 Mo ; la campagne se termine le 30 novembre
-2026 et l'endpoint peut évoluer ; enfin les clés du formulaire sont auto-générées, un champ
+`cache-control: private`, une ouverture coûtait 4,5 Mo ; la campagne se termine le 31 mai
+2027 et l'endpoint peut évoluer ; enfin les clés du formulaire sont auto-générées, un champ
 renommé côté serveur casserait une app déjà publiée.
 
 Le script filtre les champs par liste blanche et refuse d'écrire si une adresse e-mail survit.
@@ -138,7 +138,7 @@ BHVP ni du CAUE.
 
 ## Publication
 
-Le [site public](https://youplala.github.io/reprise/) réunit la politique de confidentialité,
+Le [site public](https://youplala.github.io/Paris-GO/) réunit la politique de confidentialité,
 l’assistance, les conditions d’utilisation et les sources. Ces URLs sont utilisées par App Store
 Connect et Play Console.
 

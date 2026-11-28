@@ -27,7 +27,7 @@ export {
 } from './official-prefill';
 
 export const OBSERVATOIRE_CONTRIBUTION_URL =
-  'https://observatoire-photo.paris/elements/add';
+  'https://opppp.cartes.xyz/elements/add';
 export const OFFICIAL_SUBMISSION_FIXTURE_ENABLED =
   __DEV__ && process.env.EXPO_PUBLIC_OFFICIAL_SUBMISSION_FIXTURE === '1';
 

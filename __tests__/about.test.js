@@ -17,9 +17,9 @@ it('ouvre les destinations publiques du développeur et du projet depuis À prop
     ['Contacter Élie', 'mailto:parisgo@eliebrosset.com'],
     ['GitHub d’Élie Brosset', 'https://github.com/Youplala'],
     ['LinkedIn d’Élie Brosset', 'https://www.linkedin.com/in/eliebrosset/'],
-    ['Le site de Paris GO', 'https://youplala.github.io/reprise/'],
+    ['Le site de Paris GO', 'https://youplala.github.io/Paris-GO/'],
     ['Le code sur GitHub', 'https://github.com/Youplala/reprise'],
-    ['Confidentialité', 'https://youplala.github.io/reprise/confidentialite/'],
+    ['Confidentialité', 'https://youplala.github.io/Paris-GO/confidentialite/'],
   ]) {
     const button = renderer.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0];
     expect(button).toBeDefined();

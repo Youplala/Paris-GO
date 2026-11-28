@@ -7,9 +7,9 @@ import { PROJECT_URL } from '@/constants/legal';
 import { Fonts, Palette, Radius, Spacing, TabBarClearance, Typography } from '@/constants/theme';
 
 const links = [
-  { label: 'Le site de Paris GO', detail: 'Découvrir le projet', icon: 'safari' as const, url: 'https://youplala.github.io/reprise/' },
+  { label: 'Le site de Paris GO', detail: 'Découvrir le projet', icon: 'safari' as const, url: 'https://youplala.github.io/Paris-GO/' },
   { label: 'Le code sur GitHub', detail: 'Open source · licence MIT', icon: 'chevron.left.forwardslash.chevron.right' as const, url: PROJECT_URL },
-  { label: 'Confidentialité', detail: 'Comprendre l’usage de vos données', icon: 'hand.raised' as const, url: 'https://youplala.github.io/reprise/confidentialite/' },
+  { label: 'Confidentialité', detail: 'Comprendre l’usage de vos données', icon: 'hand.raised' as const, url: 'https://youplala.github.io/Paris-GO/confidentialite/' },
 ];
 
 const profiles = [

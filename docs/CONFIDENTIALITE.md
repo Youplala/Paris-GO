@@ -1,6 +1,6 @@
 # Politique de confidentialité de Paris GO
 
-Dernière mise à jour : 27 septembre 2026
+Dernière mise à jour : 24 novembre 2026
 
 Paris GO est une application mobile gratuite et open source éditée par Élie Brosset. Elle aide à
 retrouver et à rephotographier des points de vue historiques de Paris. Paris GO n’exige aucun
@@ -17,7 +17,6 @@ Avec votre autorisation, l’application utilise :
   secteurs dont la localisation n’est qu’approximative, ces coordonnées préremplies sont
   exclusivement les vôtres ; vous pouvez les modifier avant tout envoi ;
 - la caméra, pour prendre une photographie ;
-- l’orientation du téléphone, pour faciliter le cadrage ;
 - la photothèque en ajout uniquement, pour enregistrer les photographies que vous créez.
 
 Votre carnet de prises de vue, les réglages de cadrage et les encouragements du prototype sont
@@ -41,7 +40,7 @@ L’application peut contacter :
 - **`i0.wp.com`**, un service de distribution d’images opéré par Automattic, par lequel transitent
   les photographies publiées par l’Observatoire ;
 - **`tile.openstreetmap.org`**, pour les tuiles de la carte ;
-- **`observatoire-photo.paris`**, uniquement lorsque vous ouvrez l’écran de dépôt.
+- **`opppp.cartes.xyz`**, uniquement lorsque vous ouvrez l’écran de dépôt.
 
 Ces services peuvent recevoir les informations techniques ordinaires d’une requête réseau,
 notamment l’adresse IP, selon leurs propres politiques de confidentialité.
@@ -56,11 +55,11 @@ ne reçoit pas ces journaux et ne les utilise pas pour suivre ses utilisateurs. 
 ## Dépôt volontaire sur l’Observatoire
 
 L’écran « Dépôt officiel » affiche dans une vue web le formulaire du site
-[observatoire-photo.paris](https://observatoire-photo.paris/), animé par le CAUE de Paris.
+[opppp.cartes.xyz](https://opppp.cartes.xyz/elements/add), animé par le CAUE de Paris.
 Paris GO peut y préparer la date, le lieu, les coordonnées du point de vue, le modèle d’appareil et
 les deux pièces jointes attendues : la photographie d’archive puis la photographie actuelle. Le
 commentaire public reste vide. Vous pouvez modifier ou remplacer les éléments préparés. Votre
-identité n’est préremplie que si vous avez choisi de la mémoriser sur votre appareil ; sinon vous
+identité n’est préremplie que sur choix explicite de mémorisation sur votre appareil ; sinon vous
 la renseignez vous-même. Vous cochez vous-même les consentements, vérifiez le formulaire puis
 déclenchez l’envoi. Aucun dépôt n’est automatique.
 

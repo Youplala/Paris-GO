@@ -1,4 +1,5 @@
 import {
+  OBSERVATOIRE_CONTRIBUTION_URL,
   buildObservatoirePrefillScript,
   officialReferenceFilenameStem,
   parseOfficialBridgeMessage,
@@ -22,6 +23,10 @@ jest.mock('@/services/official-reference-download', () => ({
 }));
 
 describe('official-submission bridge', () => {
+  it('ouvre le formulaire sur le domaine durable GoGoCarto', () => {
+    expect(OBSERVATOIRE_CONTRIBUTION_URL).toBe('https://opppp.cartes.xyz/elements/add');
+  });
+
   it('accepte uniquement les types de messages connus', () => {
     expect(parseOfficialBridgeMessage('{"type":"ready"}')).toEqual({ type: 'ready' });
     expect(

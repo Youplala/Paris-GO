@@ -1,4 +1,4 @@
-const OFFICIAL_ORIGIN = 'https://observatoire-photo.paris';
+const OFFICIAL_ORIGIN = 'https://opppp.cartes.xyz';
 
 export type OfficialPageKind = 'form' | 'success' | 'blank' | 'untrusted';
 
@@ -9,7 +9,7 @@ export function officialPageKind(value: string): OfficialPageKind {
     const authority = value.match(/^https:\/\/([^/?#]+)/i)?.[1]?.toLowerCase();
     if (
       url.origin !== OFFICIAL_ORIGIN ||
-      authority !== 'observatoire-photo.paris' ||
+      authority !== 'opppp.cartes.xyz' ||
       url.username ||
       url.password ||
       url.port

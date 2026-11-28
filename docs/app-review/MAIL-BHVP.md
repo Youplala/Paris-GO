@@ -44,7 +44,7 @@ m'adapterai volontiers, y compris en retirant des images si nécessaire.
 Le code, la politique de confidentialité et la page des sources sont publics :
 
 - https://github.com/Youplala/reprise
-- https://youplala.github.io/reprise/sources/
+- https://youplala.github.io/Paris-GO/sources/
 
 Merci pour la conservation et la mise en ligne de ce fonds remarquable, et pour votre temps.
 
