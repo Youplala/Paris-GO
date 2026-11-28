@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 
-import Animated, { ZoomIn } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { BeforeAfterSlider } from '@/components/before-after-slider';
 import { CaptureCelebration } from '@/components/capture-celebration';
@@ -249,7 +249,7 @@ export function ReviewScreen() {
 
           {saved ? (
             <>
-              <Animated.View entering={ZoomIn.springify().damping(12)} style={styles.confirmation}>
+              <Animated.View entering={FadeIn.duration(220)} style={styles.confirmation}>
                 <SymbolView name="checkmark.circle.fill" size={22} tintColor={Palette.lichenDeep} />
                 <Text style={styles.confirmationText}>
                   {isSimulated
